@@ -746,41 +746,104 @@
   </div>
 
   <!-- MAP TAB -->
-  <div class="scroll" id="dtab-map" style="display:none;padding:0;gap:0;position:relative">
-    <!-- SEARCH BAR -->
-    <div style="padding:12px 12px 0;background:var(--surface);position:relative;z-index:10">
-      <div style="position:relative">
-        <input id="driver-search-input" placeholder="🔍 Search destination..." autocomplete="off"
-          style="width:100%;padding:11px 40px 11px 14px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:14px;font-family:'Syne',sans-serif" />
-        <button onclick="clearDriverSearch()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer">×</button>
+  <!-- MAP TAB — FULL SCREEN GOOGLE MAPS STYLE -->
+  <div id="dtab-map" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;background:#1a1a2e">
+
+    <!-- FULL SCREEN MAP -->
+    <div id="driver-google-map" style="position:absolute;top:0;left:0;right:0;bottom:0;background:var(--surface2)"></div>
+
+    <!-- TOP BAR -->
+    <div style="position:absolute;top:0;left:0;right:0;z-index:600;padding:48px 12px 0">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button onclick="closeMapTab()" style="width:44px;height:44px;border-radius:50%;background:var(--surface);border:none;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.5);flex-shrink:0;color:var(--text)">←</button>
+        <div style="flex:1;position:relative">
+          <input id="driver-search-input" placeholder="Search destination..." autocomplete="off"
+            style="width:100%;padding:13px 44px 13px 18px;border-radius:26px;background:var(--surface);border:none;color:var(--text);font-size:15px;font-family:'Syne',sans-serif;box-shadow:0 2px 12px rgba(0,0,0,.5);outline:none" />
+          <button onclick="clearDriverSearch()" id="search-clear-btn" style="display:none;position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1">×</button>
+        </div>
       </div>
-      <!-- AUTOCOMPLETE DROPDOWN -->
-      <div id="driver-autocomplete-list" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-top:4px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.3)"></div>
-      <!-- RECENT SEARCHES -->
-      <div id="recent-searches-box" style="display:none;margin-top:8px;padding-bottom:8px">
-        <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">🕐 Recent searches</div>
-        <div id="recent-searches-list" style="display:flex;flex-direction:column;gap:4px"></div>
+      <div id="driver-autocomplete-list" style="display:none;background:var(--surface);border-radius:18px;margin-top:6px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.7);margin-left:52px"></div>
+      <div id="recent-searches-box" style="display:none;background:var(--surface);border-radius:18px;margin-top:6px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.7);margin-left:52px">
+        <div style="padding:12px 16px;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)">Recent</div>
+        <div id="recent-searches-list"></div>
       </div>
     </div>
-    <!-- SELECTED DESTINATION CARD -->
-    <div id="driver-dest-card" style="display:none;margin:8px 12px 0;background:rgba(34,211,122,.08);border:1px solid rgba(34,211,122,.3);border-radius:10px;padding:10px 12px">
-      <div style="display:flex;justify-content:space-between;align-items:center">
+
+    <!-- RIGHT BUTTONS -->
+    <div style="position:absolute;right:12px;top:130px;z-index:600;display:flex;flex-direction:column;gap:10px">
+      <button onclick="centerOnDriver()" style="width:48px;height:48px;border-radius:50%;background:var(--surface);border:none;cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.5)">📍</button>
+      <div style="width:48px;height:48px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.5)">
+        <div class="conn-dot" id="driver-map-dot" style="width:12px;height:12px"></div>
+      </div>
+    </div>
+
+    <!-- GPS PILL -->
+    <div style="position:absolute;bottom:24px;left:12px;z-index:600;background:rgba(15,17,23,.85);border-radius:20px;padding:5px 12px;backdrop-filter:blur(4px)">
+      <span id="gps-coords" style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace">GPS waiting...</span>
+    </div>
+
+    <!-- DESTINATION PREVIEW CARD (before starting navigation) -->
+    <div id="dest-preview-card" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:600;background:var(--surface);border-radius:24px 24px 0 0;padding:16px 20px 36px;box-shadow:0 -4px 32px rgba(0,0,0,.6)">
+      <div style="width:40px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 16px"></div>
+      <div style="font-size:20px;font-weight:800;margin-bottom:4px" id="dest-preview-name"></div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px" id="dest-preview-addr"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding:14px;background:var(--surface2);border-radius:14px">
         <div>
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">Destination set</div>
-          <div id="driver-dest-name" style="font-size:13px;font-weight:700;color:var(--green)"></div>
-          <div id="driver-dest-addr" style="font-size:11px;color:var(--muted);margin-top:1px"></div>
+          <div style="font-size:32px;font-weight:800;color:var(--blue);font-family:'DM Mono',monospace;line-height:1" id="dest-preview-eta">--</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px" id="dest-preview-dist">--</div>
         </div>
-        <a id="driver-waze-btn" href="#" target="_blank" style="text-decoration:none">
-          <button class="btn btn-outline btn-sm">Waze</button>
+        <div style="text-align:right">
+          <div style="font-size:24px;font-weight:800;color:var(--green)" id="dest-preview-fare">--</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px" id="dest-preview-arrival">--</div>
+        </div>
+      </div>
+      <button onclick="startNavigation()" style="width:100%;background:var(--blue);color:#fff;border:none;border-radius:16px;padding:17px;font-size:17px;font-weight:800;cursor:pointer;font-family:'Syne',sans-serif;letter-spacing:.2px;box-shadow:0 4px 16px rgba(79,158,255,.4)">
+        🧭 Start Navigation
+      </button>
+    </div>
+
+    <!-- ACTIVE NAVIGATION PANEL -->
+    <div id="driver-nav-panel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:600;background:var(--surface);border-radius:24px 24px 0 0;box-shadow:0 -4px 32px rgba(0,0,0,.6)">
+      <div onclick="toggleNavSteps()" style="text-align:center;padding:12px 0 0;cursor:pointer">
+        <div style="width:40px;height:4px;border-radius:2px;background:var(--border);margin:0 auto"></div>
+      </div>
+      <!-- CURRENT STEP -->
+      <div style="background:var(--blue);margin:12px 14px 10px;border-radius:18px;padding:16px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 4px 16px rgba(79,158,255,.3)">
+        <div id="nav-step-icon" style="font-size:40px;min-width:44px;text-align:center;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))">➡️</div>
+        <div style="flex:1;overflow:hidden">
+          <div id="nav-step-text" style="font-size:17px;font-weight:800;color:#fff;line-height:1.3"></div>
+          <div id="nav-step-dist" style="font-size:13px;color:rgba(255,255,255,.75);margin-top:4px"></div>
+        </div>
+        <button onclick="navNextStep()" style="background:rgba(255,255,255,.25);border:none;border-radius:50%;width:38px;height:38px;color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">▶</button>
+      </div>
+      <!-- ETA ROW -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 22px 12px">
+        <div>
+          <div id="nav-eta" style="font-size:32px;font-weight:800;color:var(--text);font-family:'DM Mono',monospace;line-height:1"></div>
+          <div id="nav-dist" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
+        </div>
+        <div id="nav-arrival" style="font-size:14px;color:var(--muted)"></div>
+        <div id="nav-fare" style="font-size:22px;font-weight:800;color:var(--green)"></div>
+      </div>
+      <!-- VOICE CONTROLS -->
+      <div style="display:flex;gap:8px;padding:0 14px 10px">
+        <button id="nav-voice-btn" onclick="toggleNavVoice()" style="flex:1;background:rgba(34,211,122,.15);border:1px solid rgba(34,211,122,.4);border-radius:22px;padding:9px 8px;cursor:pointer;font-size:12px;font-weight:700;color:var(--green);font-family:'Syne',sans-serif">🔊 Voice ON</button>
+        <button id="nav-lang-btn" onclick="toggleNavLang()" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:22px;padding:9px 8px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text);font-family:'Syne',sans-serif">🇺🇸 English</button>
+        <button onclick="speakCurrentStep()" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:22px;padding:9px 8px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text);font-family:'Syne',sans-serif">🔁 Repeat</button>
+      </div>
+      <!-- STEPS TOGGLE -->
+      <div onclick="toggleNavSteps()" style="display:flex;justify-content:space-between;align-items:center;padding:10px 18px;border-top:1px solid var(--border);cursor:pointer">
+        <span style="font-size:13px;color:var(--muted);font-weight:600" id="nav-steps-count">All steps</span>
+        <span id="nav-steps-arrow" style="color:var(--muted);font-size:14px">▼</span>
+      </div>
+      <div id="nav-steps-list" style="display:none;max-height:260px;overflow-y:auto;padding:0 14px 8px"></div>
+      <!-- ACTION BUTTONS -->
+      <div style="display:flex;gap:10px;padding:10px 14px 32px">
+        <button onclick="clearDriverSearch()" style="flex:1;background:var(--red);color:#fff;border:none;border-radius:16px;padding:15px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif">✕ End</button>
+        <a id="driver-waze-btn" href="#" target="_blank" style="flex:1;text-decoration:none">
+          <button style="width:100%;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:16px;padding:15px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif">🗺 Waze</button>
         </a>
       </div>
-    </div>
-    <!-- MAP -->
-    <div id="driver-google-map" style="width:100%;height:280px;background:var(--surface2);margin-top:8px"></div>
-    <!-- GPS STATUS -->
-    <div style="padding:10px 12px;display:flex;align-items:center;gap:8px;background:var(--surface);border-top:1px solid var(--border)">
-      <div class="conn-dot" id="driver-map-dot"></div>
-      <span id="gps-coords" style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">Waiting for GPS...</span>
     </div>
   </div>
 
@@ -2022,9 +2085,15 @@ function cTab(name, el) {
 function dTab(name, el) {
   document.querySelectorAll('#screen-driver .scroll').forEach(x => x.style.display = 'none');
   document.querySelectorAll('#screen-driver .tab-btn').forEach(x => x.classList.remove('active'));
-  document.getElementById('dtab-' + name).style.display = 'flex';
   el.classList.add('active');
-  if (name === 'map') setTimeout(() => { initDriverMap(); initDriverSearchWithRecents(); renderRecentSearches(); }, 300);
+  if (name === 'map') {
+    // Map is fixed full screen — show it specially
+    const mapTab = document.getElementById('dtab-map');
+    if (mapTab) mapTab.style.display = 'block';
+    setTimeout(() => { initDriverMap(); initDriverSearchWithRecents(); renderRecentSearches(); }, 300);
+  } else {
+    document.getElementById('dtab-' + name).style.display = 'flex';
+  }
 }
 
 // --- ADMIN TABS ---
@@ -3034,69 +3103,69 @@ function selectDriverPlace(placeId, description) {
   });
 }
 
+function closeMapTab() {
+  const mapTab = document.getElementById('dtab-map');
+  if (mapTab) mapTab.style.display = 'none';
+  document.querySelectorAll('#screen-driver .tab-btn').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#screen-driver .tab-btn')[0].classList.add('active');
+  document.querySelectorAll('#screen-driver .scroll').forEach(x => x.style.display = 'none');
+  document.getElementById('dtab-clock').style.display = 'flex';
+}
+
+let pendingNavLeg = null;
+let pendingNavDest = null;
+
+function startNavigation() {
+  document.getElementById('dest-preview-card').style.display = 'none';
+  if (pendingNavLeg && pendingNavDest) showNavPanel(pendingNavLeg, pendingNavDest);
+}
+
 function drawDriverRoute(origin, destLatLng, destName, destAddr, destLatLngObj) {
+  if (!driverMap) { setTimeout(() => drawDriverRoute(origin, destLatLng, destName, destAddr, destLatLngObj), 600); return; }
+  if (!driverRouteRenderer) {
+    driverRouteRenderer = new google.maps.DirectionsRenderer({
+      map: driverMap,
+      suppressMarkers: false,
+      polylineOptions: { strokeColor: '#4f9eff', strokeWeight: 6, strokeOpacity: 0.95 }
+    });
+  }
   const svc = new google.maps.DirectionsService();
-  svc.route({
-    origin,
-    destination: destLatLng,
-    travelMode: google.maps.TravelMode.DRIVING,
-    provideRouteAlternatives: false
-  }, (result, status) => {
-    if (status === 'OK') {
-      driverRouteRenderer.setDirections(result);
-      const leg = result.routes[0].legs[0];
-      const miles = (leg.distance.value / 1609.34).toFixed(1);
-      const estPrice = (5 + parseFloat(miles) * 2.50).toFixed(2);
-      const hiPrice = (parseFloat(estPrice) + 3).toFixed(2);
-
-      // Update destination card
-      document.getElementById('driver-dest-name').textContent = destName;
-      document.getElementById('driver-dest-addr').textContent = `${leg.distance.text} • ${leg.duration.text}`;
-
-      // Price estimate
-      let priceEl = document.getElementById('driver-price-est');
-      if (!priceEl) {
-        priceEl = document.createElement('div');
-        priceEl.id = 'driver-price-est';
-        priceEl.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center';
-        document.getElementById('driver-dest-card').appendChild(priceEl);
-      }
-      priceEl.innerHTML = `
-        <div>
-          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Est. fare</div>
-          <div style="font-size:20px;font-weight:800;color:var(--green)">$${estPrice} – $${hiPrice}</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:10px;color:var(--muted)">${miles} mi</div>
-          <div style="font-size:10px;color:var(--muted)">${leg.duration.text}</div>
-        </div>`;
-
-      // Show navigation panel with turn by turn
-      showNavPanel(leg, destName);
-
-      // Fit map to show full route
-      const bounds = new google.maps.LatLngBounds();
-      result.routes[0].legs[0].steps.forEach(s => bounds.extend(s.start_location));
-      bounds.extend(destLatLng);
-      driverMap.fitBounds(bounds);
-
-      // Save to Firebase
-      if (currentDriver) {
-        db.collection('drivers').doc(currentDriver).update({
-          destName, destAddr,
-          destLat: destLatLngObj.lat(),
-          destLng: destLatLngObj.lng(),
-          distanceText: leg.distance.text,
-          durationText: leg.duration.text,
-          estFareLow: estPrice,
-          estFareHigh: hiPrice
-        }).catch(() => {});
-      }
-    } else {
-      console.error('Route error:', status);
-      // Still show destination on map
-      driverMap.setCenter(destLatLng);
-      driverMap.setZoom(15);
+  svc.route({ origin, destination: destLatLng, travelMode: google.maps.TravelMode.DRIVING }, (result, status) => {
+    if (status !== 'OK') { alert(`Directions error: ${status}`); return; }
+    driverRouteRenderer.setDirections(result);
+    const leg = result.routes[0].legs[0];
+    const miles = (leg.distance.value / 1609.34).toFixed(1);
+    const estLow = (5 + parseFloat(miles) * 2.50).toFixed(2);
+    const estHigh = (parseFloat(estLow) + 3).toFixed(2);
+    const arrival = new Date(Date.now() + leg.duration.value * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    pendingNavLeg = leg; pendingNavDest = destName;
+    // Show preview card
+    document.getElementById('dest-preview-card').style.display = 'block';
+    document.getElementById('driver-nav-panel').style.display = 'none';
+    document.getElementById('dest-preview-name').textContent = destName;
+    document.getElementById('dest-preview-addr').textContent = destAddr;
+    document.getElementById('dest-preview-eta').textContent = leg.duration.text;
+    document.getElementById('dest-preview-dist').textContent = `${leg.distance.text} (${miles} mi)`;
+    document.getElementById('dest-preview-fare').textContent = `$${estLow}–$${estHigh}`;
+    document.getElementById('dest-preview-arrival').textContent = `Arrive ~${arrival}`;
+    const clearBtn = document.getElementById('search-clear-btn');
+    if (clearBtn) clearBtn.style.display = 'block';
+    // Fit map
+    const bounds = new google.maps.LatLngBounds();
+    leg.steps.forEach(s => { bounds.extend(s.start_location); bounds.extend(s.end_location); });
+    driverMap.fitBounds(bounds, { top: 120, bottom: 340, left: 20, right: 20 });
+    // Waze
+    const wazeBtn = document.getElementById('driver-waze-btn');
+    if (wazeBtn) wazeBtn.href = `https://waze.com/ul?q=${encodeURIComponent(destAddr)}&navigate=yes`;
+    // Firebase
+    if (currentDriver) {
+      db.collection('drivers').doc(currentDriver).update({
+        destName, destAddr,
+        destLat: typeof destLatLng.lat === 'function' ? destLatLng.lat() : destLatLng.lat,
+        destLng: typeof destLatLng.lng === 'function' ? destLatLng.lng() : destLatLng.lng,
+        distanceText: leg.distance.text, durationText: leg.duration.text,
+        estFareLow: estLow, estFareHigh: estHigh
+      }).catch(() => {});
     }
   });
 }
