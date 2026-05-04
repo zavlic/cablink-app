@@ -776,7 +776,7 @@
       </div>
     </div>
     <!-- MAP -->
-    <div id="driver-google-map" style="width:100%;height:380px;background:var(--surface2);margin-top:8px"></div>
+    <div id="driver-google-map" style="width:100%;height:280px;background:var(--surface2);margin-top:8px"></div>
     <!-- GPS STATUS -->
     <div style="padding:10px 12px;display:flex;align-items:center;gap:8px;background:var(--surface);border-top:1px solid var(--border)">
       <div class="conn-dot" id="driver-map-dot"></div>
@@ -2080,6 +2080,8 @@ function startGPS() {
   gpsWatcher = navigator.geolocation.watchPosition(pos => {
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
+    lastKnownLat = lat;
+    lastKnownLng = lng;
     document.getElementById('gps-coords').textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     document.getElementById('driver-map-dot').className = 'conn-dot connected';
     // Update driver map marker
@@ -2870,6 +2872,8 @@ let placesService = null;
 let geocoder = null;
 let adminMapListener = null;
 let mapsReady = false;
+let lastKnownLat = null;
+let lastKnownLng = null;
 
 window.initGoogleMaps = function() {
   mapsReady = true;
@@ -3006,75 +3010,393 @@ function selectDriverPlace(placeId, description) {
     document.getElementById('driver-waze-btn').href =
       `https://waze.com/ul?q=${encodeURIComponent(destAddr)}&navigate=yes`;
 
-    // Draw route on map
-    if (driverMarker && driverMarker.getPosition()) {
-      const svc = new google.maps.DirectionsService();
-      svc.route({
-        origin: driverMarker.getPosition(),
-        destination: destLatLng,
-        travelMode: google.maps.TravelMode.DRIVING
-      }, (result, status) => {
-        if (status === 'OK') {
-          driverRouteRenderer.setDirections(result);
-          const leg = result.routes[0].legs[0];
-          const mins = leg.duration.value / 60;
-          const miles = (leg.distance.value / 1609.34).toFixed(1);
-          const estPrice = (5 + parseFloat(miles) * 2.50).toFixed(2);
-          const hiPrice = (parseFloat(estPrice) + 3).toFixed(2);
-
-          // Update destination card with price + distance
-          document.getElementById('driver-dest-name').textContent = destName;
-          document.getElementById('driver-dest-addr').textContent =
-            `${leg.distance.text} • ${leg.duration.text}`;
-
-          // Show price estimate
-          let priceEl = document.getElementById('driver-price-est');
-          if (!priceEl) {
-            priceEl = document.createElement('div');
-            priceEl.id = 'driver-price-est';
-            priceEl.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center';
-            document.getElementById('driver-dest-card').appendChild(priceEl);
-          }
-          priceEl.innerHTML = `
-            <div>
-              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Est. fare</div>
-              <div style="font-size:20px;font-weight:800;color:var(--green)">$${estPrice} – $${hiPrice}</div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-size:10px;color:var(--muted)">${miles} mi</div>
-              <div style="font-size:10px;color:var(--muted)">${leg.duration.text}</div>
-            </div>`;
-
-          // Save to Firebase
-          if (currentDriver) {
-            db.collection('drivers').doc(currentDriver).update({
-              destName, destAddr,
-              destLat: destLatLng.lat(),
-              destLng: destLatLng.lng(),
-              distanceText: leg.distance.text,
-              durationText: leg.duration.text,
-              estFareLow: estPrice,
-              estFareHigh: hiPrice
-            });
-          }
-        }
-      });
+    // Get origin — use marker position OR last known GPS OR Baltimore default
+    let origin = null;
+    if (driverMarker && driverMarker.getPosition() &&
+        driverMarker.getPosition().lat() !== 39.2904) {
+      origin = driverMarker.getPosition();
+    } else if (lastKnownLat && lastKnownLng) {
+      origin = { lat: lastKnownLat, lng: lastKnownLng };
     } else {
+      // Ask for current location
+      navigator.geolocation.getCurrentPosition(pos => {
+        lastKnownLat = pos.coords.latitude;
+        lastKnownLng = pos.coords.longitude;
+        if (driverMarker) driverMarker.setPosition({ lat: lastKnownLat, lng: lastKnownLng });
+        drawDriverRoute({ lat: lastKnownLat, lng: lastKnownLng }, destLatLng, destName, destAddr, destLatLng);
+      }, () => {
+        // Use Baltimore as last resort
+        drawDriverRoute({ lat: 39.2904, lng: -76.6122 }, destLatLng, destName, destAddr, destLatLng);
+      });
+      return;
+    }
+    drawDriverRoute(origin, destLatLng, destName, destAddr, destLatLng);
+  });
+}
+
+function drawDriverRoute(origin, destLatLng, destName, destAddr, destLatLngObj) {
+  const svc = new google.maps.DirectionsService();
+  svc.route({
+    origin,
+    destination: destLatLng,
+    travelMode: google.maps.TravelMode.DRIVING,
+    provideRouteAlternatives: false
+  }, (result, status) => {
+    if (status === 'OK') {
+      driverRouteRenderer.setDirections(result);
+      const leg = result.routes[0].legs[0];
+      const miles = (leg.distance.value / 1609.34).toFixed(1);
+      const estPrice = (5 + parseFloat(miles) * 2.50).toFixed(2);
+      const hiPrice = (parseFloat(estPrice) + 3).toFixed(2);
+
+      // Update destination card
+      document.getElementById('driver-dest-name').textContent = destName;
+      document.getElementById('driver-dest-addr').textContent = `${leg.distance.text} • ${leg.duration.text}`;
+
+      // Price estimate
+      let priceEl = document.getElementById('driver-price-est');
+      if (!priceEl) {
+        priceEl = document.createElement('div');
+        priceEl.id = 'driver-price-est';
+        priceEl.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center';
+        document.getElementById('driver-dest-card').appendChild(priceEl);
+      }
+      priceEl.innerHTML = `
+        <div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Est. fare</div>
+          <div style="font-size:20px;font-weight:800;color:var(--green)">$${estPrice} – $${hiPrice}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:10px;color:var(--muted)">${miles} mi</div>
+          <div style="font-size:10px;color:var(--muted)">${leg.duration.text}</div>
+        </div>`;
+
+      // Show navigation panel with turn by turn
+      showNavPanel(leg, destName);
+
+      // Fit map to show full route
+      const bounds = new google.maps.LatLngBounds();
+      result.routes[0].legs[0].steps.forEach(s => bounds.extend(s.start_location));
+      bounds.extend(destLatLng);
+      driverMap.fitBounds(bounds);
+
+      // Save to Firebase
+      if (currentDriver) {
+        db.collection('drivers').doc(currentDriver).update({
+          destName, destAddr,
+          destLat: destLatLngObj.lat(),
+          destLng: destLatLngObj.lng(),
+          distanceText: leg.distance.text,
+          durationText: leg.duration.text,
+          estFareLow: estPrice,
+          estFareHigh: hiPrice
+        }).catch(() => {});
+      }
+    } else {
+      console.error('Route error:', status);
+      // Still show destination on map
       driverMap.setCenter(destLatLng);
       driverMap.setZoom(15);
-      if (driverDestMarker) driverDestMarker.setMap(null);
-      driverDestMarker = new google.maps.Marker({ map: driverMap, position: destLatLng });
     }
   });
 }
 
+// --- VOICE NAVIGATION ---
+let navVoiceLang = 'en-US';
+let navSpeechEnabled = true;
+let navCurrentStepIndex = 0;
+let navSteps = [];
+let navWatchId = null;
+let navLeg = null;
+
+function speakDirection(text) {
+  if (!navSpeechEnabled || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = navVoiceLang;
+  utter.rate = 0.95;
+  utter.pitch = 1;
+  utter.volume = 1;
+  // Pick best available voice
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(v => v.lang === navVoiceLang && v.localService) ||
+                    voices.find(v => v.lang.startsWith(navVoiceLang.split('-')[0]));
+  if (preferred) utter.voice = preferred;
+  window.speechSynthesis.speak(utter);
+}
+
+function stripHtml(html) { return html.replace(/<[^>]*>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'); }
+
+function getStepIcon(instruction) {
+  const t = instruction.toLowerCase();
+  if (t.includes('left')) return '↰';
+  if (t.includes('right')) return '↱';
+  if (t.includes('u-turn') || t.includes('uturn')) return '↩';
+  if (t.includes('roundabout') || t.includes('circle')) return '🔄';
+  if (t.includes('merge') || t.includes('ramp')) return '⬈';
+  if (t.includes('exit')) return '⬉';
+  if (t.includes('straight') || t.includes('continue') || t.includes('head')) return '↑';
+  if (t.includes('arrive') || t.includes('destination')) return '🏁';
+  return '➡️';
+}
+
+function showNavPanel(leg, destName) {
+  navLeg = leg;
+  navSteps = leg.steps;
+  navCurrentStepIndex = 0;
+
+  // Build or get panel
+  let panel = document.getElementById('driver-nav-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'driver-nav-panel';
+    panel.style.cssText = `
+      position:absolute;bottom:0;left:0;right:0;z-index:25;
+      background:var(--surface);border-radius:20px 20px 0 0;
+      box-shadow:0 -6px 32px rgba(0,0,0,.5);
+      font-family:'Syne',sans-serif;
+    `;
+    document.getElementById('dtab-map').style.position = 'relative';
+    document.getElementById('dtab-map').appendChild(panel);
+  }
+
+  const miles = (leg.distance.value / 1609.34).toFixed(1);
+  const estLow = (5 + parseFloat(miles) * 2.50).toFixed(2);
+  const estHigh = (parseFloat(estLow) + 3).toFixed(2);
+  const arrivalTime = new Date(Date.now() + leg.duration.value * 1000)
+    .toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  const firstStep = navSteps[0];
+  const firstIcon = getStepIcon(stripHtml(firstStep?.html_instructions || ''));
+
+  panel.innerHTML = `
+    <!-- DRAG HANDLE -->
+    <div style="text-align:center;padding:10px 0 4px;cursor:pointer" onclick="toggleNavSteps()">
+      <div style="width:40px;height:4px;border-radius:2px;background:var(--border);margin:0 auto"></div>
+    </div>
+
+    <!-- ETA ROW -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 20px 10px">
+      <div>
+        <div style="font-size:34px;font-weight:800;color:var(--text);font-family:'DM Mono',monospace;line-height:1">${leg.duration.text}</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:2px">${leg.distance.text} • ${miles} mi</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:20px;font-weight:800;color:var(--green)">$${estLow}–$${estHigh}</div>
+        <div style="font-size:12px;color:var(--muted)">Arrive ~${arrivalTime}</div>
+      </div>
+    </div>
+
+    <!-- CURRENT STEP -->
+    <div style="background:var(--blue);margin:0 12px 10px;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px">
+      <div style="font-size:32px;min-width:36px;text-align:center" id="nav-step-icon">${firstIcon}</div>
+      <div style="flex:1">
+        <div id="nav-step-text" style="font-size:15px;font-weight:700;color:#fff;line-height:1.3">${stripHtml(firstStep?.html_instructions || '')}</div>
+        <div id="nav-step-dist" style="font-size:12px;color:rgba(255,255,255,.7);margin-top:3px">${firstStep?.distance?.text || ''} • ${firstStep?.duration?.text || ''}</div>
+      </div>
+      <div style="font-size:22px;cursor:pointer" onclick="navNextStep()" title="Next step">▶</div>
+    </div>
+
+    <!-- VOICE + LANGUAGE CONTROLS -->
+    <div style="display:flex;align-items:center;gap:8px;padding:0 12px 10px">
+      <button id="nav-voice-btn" onclick="toggleNavVoice()"
+        style="background:${navSpeechEnabled ? 'rgba(34,211,122,.15)' : 'var(--surface2)'};border:1px solid ${navSpeechEnabled ? 'rgba(34,211,122,.4)' : 'var(--border)'};border-radius:20px;padding:6px 14px;cursor:pointer;font-size:12px;font-weight:700;color:${navSpeechEnabled ? 'var(--green)' : 'var(--muted)'};font-family:'Syne',sans-serif;display:flex;align-items:center;gap:6px">
+        🔊 Voice ${navSpeechEnabled ? 'ON' : 'OFF'}
+      </button>
+      <button id="nav-lang-btn" onclick="toggleNavLang()"
+        style="background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text);font-family:'Syne',sans-serif">
+        ${navVoiceLang === 'en-US' ? '🇺🇸 EN' : '🇪🇸 ES'}
+      </button>
+      <button onclick="speakCurrentStep()"
+        style="background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text);font-family:'Syne',sans-serif">
+        🔁 Repeat
+      </button>
+    </div>
+
+    <!-- ALL STEPS TOGGLE -->
+    <div onclick="toggleNavSteps()" style="padding:8px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border)">
+      <span style="font-size:12px;color:var(--muted);font-weight:600">All ${navSteps.length} steps</span>
+      <span id="nav-steps-arrow" style="color:var(--muted);font-size:12px">▼</span>
+    </div>
+    <div id="nav-steps-list" style="display:none;max-height:220px;overflow-y:auto;padding:0 12px 8px">
+      ${navSteps.map((step, i) => `
+        <div id="nav-step-${i}" onclick="navGoToStep(${i})" style="display:flex;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border);align-items:flex-start;cursor:pointer;border-radius:8px;background:${i===0?'rgba(79,158,255,.1)':'transparent'}">
+          <div style="width:24px;height:24px;border-radius:50%;background:${i===0?'var(--blue)':'var(--surface2)'};color:${i===0?'#fff':'var(--muted)'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${i+1}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;color:var(--text)">${getStepIcon(stripHtml(step.html_instructions))} ${stripHtml(step.html_instructions)}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">${step.distance.text} • ${step.duration.text}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+
+    <!-- ACTION BUTTONS -->
+    <div style="display:flex;gap:8px;padding:8px 12px 20px">
+      <button class="btn btn-red btn-sm" style="flex:1" onclick="clearDriverSearch()">✕ End</button>
+      <a id="driver-waze-btn" href="#" target="_blank" style="text-decoration:none;flex:1">
+        <button class="btn btn-outline btn-sm" style="width:100%">🗺 Waze</button>
+      </a>
+      <button class="btn btn-outline btn-sm" style="flex:1" onclick="centerOnDriver()">📍 Me</button>
+    </div>
+  `;
+
+  // Speak first direction
+  setTimeout(() => speakCurrentStep(), 800);
+
+  // Start tracking position against steps
+  startStepTracking();
+}
+
+function toggleNavSteps() {
+  const list = document.getElementById('nav-steps-list');
+  const arrow = document.getElementById('nav-steps-arrow');
+  if (!list) return;
+  const open = list.style.display === 'block';
+  list.style.display = open ? 'none' : 'block';
+  if (arrow) arrow.textContent = open ? '▼' : '▲';
+}
+
+function toggleNavVoice() {
+  navSpeechEnabled = !navSpeechEnabled;
+  const btn = document.getElementById('nav-voice-btn');
+  if (btn) {
+    btn.style.background = navSpeechEnabled ? 'rgba(34,211,122,.15)' : 'var(--surface2)';
+    btn.style.border = `1px solid ${navSpeechEnabled ? 'rgba(34,211,122,.4)' : 'var(--border)'}`;
+    btn.style.color = navSpeechEnabled ? 'var(--green)' : 'var(--muted)';
+    btn.textContent = `🔊 Voice ${navSpeechEnabled ? 'ON' : 'OFF'}`;
+  }
+  if (navSpeechEnabled) speakCurrentStep();
+}
+
+function toggleNavLang() {
+  navVoiceLang = navVoiceLang === 'en-US' ? 'es-ES' : 'en-US';
+  const btn = document.getElementById('nav-lang-btn');
+  if (btn) btn.textContent = navVoiceLang === 'en-US' ? '🇺🇸 EN' : '🇪🇸 ES';
+  speakCurrentStep();
+}
+
+function speakCurrentStep() {
+  if (!navSteps.length) return;
+  const step = navSteps[navCurrentStepIndex];
+  if (!step) return;
+  const text = stripHtml(step.html_instructions);
+  const dist = step.distance.text;
+  if (navVoiceLang === 'es-ES') {
+    speakDirection(`En ${dist}, ${translateStep(text)}`);
+  } else {
+    speakDirection(`In ${dist}, ${text}`);
+  }
+}
+
+function translateStep(text) {
+  const t = text.toLowerCase();
+  if (t.includes('turn left')) return text.replace(/turn left/i, 'gire a la izquierda');
+  if (t.includes('turn right')) return text.replace(/turn right/i, 'gire a la derecha');
+  if (t.includes('head north')) return text.replace(/head north/i, 'dirígete al norte');
+  if (t.includes('head south')) return text.replace(/head south/i, 'dirígete al sur');
+  if (t.includes('head east')) return text.replace(/head east/i, 'dirígete al este');
+  if (t.includes('head west')) return text.replace(/head west/i, 'dirígete al oeste');
+  if (t.includes('continue straight')) return text.replace(/continue straight/i, 'continúa recto');
+  if (t.includes('merge')) return text.replace(/merge/i, 'incorpórate');
+  if (t.includes('take the exit')) return text.replace(/take the exit/i, 'toma la salida');
+  if (t.includes('roundabout')) return text.replace(/roundabout/i, 'rotonda');
+  if (t.includes('u-turn')) return text.replace(/u-turn/i, 'da un giro en U');
+  if (t.includes('destination')) return 'Has llegado a tu destino';
+  if (t.includes('arrive')) return 'Has llegado a tu destino';
+  return text; // fallback to English if no translation
+}
+
+function navGoToStep(index) {
+  if (index < 0 || index >= navSteps.length) return;
+  navCurrentStepIndex = index;
+  updateCurrentStep();
+  speakCurrentStep();
+  // Highlight selected step
+  navSteps.forEach((_, i) => {
+    const el = document.getElementById(`nav-step-${i}`);
+    if (el) {
+      el.style.background = i === index ? 'rgba(79,158,255,.1)' : 'transparent';
+      const dot = el.querySelector('div');
+      if (dot) { dot.style.background = i === index ? 'var(--blue)' : 'var(--surface2)'; dot.style.color = i === index ? '#fff' : 'var(--muted)'; }
+    }
+  });
+}
+
+function navNextStep() {
+  if (navCurrentStepIndex < navSteps.length - 1) navGoToStep(navCurrentStepIndex + 1);
+}
+
+function updateCurrentStep() {
+  const step = navSteps[navCurrentStepIndex];
+  if (!step) return;
+  const iconEl = document.getElementById('nav-step-icon');
+  const textEl = document.getElementById('nav-step-text');
+  const distEl = document.getElementById('nav-step-dist');
+  const text = stripHtml(step.html_instructions);
+  if (iconEl) iconEl.textContent = getStepIcon(text);
+  if (textEl) textEl.textContent = text;
+  if (distEl) distEl.textContent = `${step.distance.text} • ${step.duration.text}`;
+}
+
+function startStepTracking() {
+  if (navWatchId) navigator.geolocation.clearWatch(navWatchId);
+  if (!navigator.geolocation || !navSteps.length) return;
+  navWatchId = navigator.geolocation.watchPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    // Check if close to next step start point
+    if (navCurrentStepIndex < navSteps.length - 1) {
+      const nextStep = navSteps[navCurrentStepIndex + 1];
+      const nextLat = nextStep.start_location.lat();
+      const nextLng = nextStep.start_location.lng();
+      const dist = getDistanceMeters(lat, lng, nextLat, nextLng);
+      if (dist < 50) { // within 50 meters
+        navGoToStep(navCurrentStepIndex + 1);
+      }
+    }
+    // Update driver position on map
+    updateDriverMapPosition(lat, lng);
+  }, null, { enableHighAccuracy: true, maximumAge: 3000 });
+}
+
+function getDistanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLng = (lng2-lng1) * Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function centerOnDriver() {
+  if (driverMarker && driverMarker.getPosition() && driverMap) {
+    driverMap.panTo(driverMarker.getPosition());
+    driverMap.setZoom(16);
+  } else if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      if (driverMap) { driverMap.panTo(p); driverMap.setZoom(16); }
+    });
+  }
+}
+
 function clearDriverSearch() {
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  if (navWatchId) { navigator.geolocation.clearWatch(navWatchId); navWatchId = null; }
   document.getElementById('driver-search-input').value = '';
   document.getElementById('driver-autocomplete-list').style.display = 'none';
-  document.getElementById('driver-dest-card').style.display = 'none';
+  document.getElementById('recent-searches-box').style.display = 'none';
+  const priceEl = document.getElementById('driver-price-est');
+  if (priceEl) priceEl.remove();
+  const navPanel = document.getElementById('driver-nav-panel');
+  if (navPanel) navPanel.remove();
   if (driverRouteRenderer) driverRouteRenderer.setDirections({ routes: [] });
   if (driverDestMarker) { driverDestMarker.setMap(null); driverDestMarker = null; }
+  navSteps = []; navCurrentStepIndex = 0;
+  if (driverMarker && driverMarker.getPosition() && driverMap) {
+    driverMap.panTo(driverMarker.getPosition());
+    driverMap.setZoom(15);
+  }
 }
+
+
 
 // Update driver marker position when GPS updates
 function updateDriverMapPosition(lat, lng) {
