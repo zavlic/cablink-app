@@ -218,10 +218,174 @@
       <div id="role-admin-bullets" style="font-size:12px;color:var(--muted);line-height:1.8">• Live map of all drivers<br>• Add & manage drivers instantly<br>• Broadcast messages to all drivers</div>
     </div>
 
+    <!-- DEV MODE -->
+    <div style="margin-top:16px;text-align:center">
+      <button onclick="show('dev')" style="background:none;border:1px dashed rgba(255,255,255,.2);border-radius:10px;padding:8px 20px;color:var(--muted);font-size:12px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:600;letter-spacing:.3px">
+        🛠️ Developer Testing Mode
+      </button>
+    </div>
+
   </div>
 </div>
 
-<!-- LOGIN -->
+<!-- DEV SCREEN -->
+<div class="screen" id="screen-dev">
+  <div class="header">
+    <button onclick="show('role')" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">←</button>
+    <div style="flex:1;margin-left:8px">
+      <div class="header-title" style="color:#ff6b35">🛠️ Dev Testing Mode</div>
+      <div class="header-sub">Simulate drivers & test features</div>
+    </div>
+  </div>
+  <div class="scroll" style="gap:14px">
+
+    <!-- ADD TEST DRIVER -->
+    <div class="sec">Create test driver</div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px;border-color:rgba(255,107,53,.3)">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">First Name</label>
+          <input id="dev-first-name" placeholder="e.g. Carlos" autocomplete="off" style="margin-top:4px" />
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Last Name</label>
+          <input id="dev-last-name" placeholder="e.g. Rivera" autocomplete="off" style="margin-top:4px" />
+        </div>
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Driver ID</label>
+        <input id="dev-driver-id" placeholder="e.g. C5" autocomplete="off" autocapitalize="characters" style="margin-top:4px" />
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Password</label>
+        <input id="dev-password" placeholder="e.g. 1234" style="margin-top:4px" />
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:10px">
+        <div class="sec" style="margin-bottom:8px">Vehicle info</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Make</label>
+            <input id="dev-make" placeholder="e.g. Toyota" autocomplete="off" style="margin-top:4px" />
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Model</label>
+            <input id="dev-model" placeholder="e.g. Camry" autocomplete="off" style="margin-top:4px" />
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Color</label>
+            <input id="dev-color" placeholder="e.g. White" autocomplete="off" style="margin-top:4px" />
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">License Plate</label>
+            <input id="dev-plate" placeholder="e.g. ABC-1234" autocomplete="off" autocapitalize="characters" style="margin-top:4px" />
+          </div>
+        </div>
+      </div>
+      <div id="dev-create-msg" style="display:none;font-size:12px;font-weight:600"></div>
+      <button class="btn" style="width:100%;background:#ff6b35;color:#fff" onclick="createDevDriver()">Create Test Driver</button>
+    </div>
+
+    <!-- TEST DRIVERS LIST -->
+    <div class="sec">Test drivers</div>
+    <div id="dev-drivers-list" style="display:flex;flex-direction:column;gap:8px"></div>
+
+    <!-- SIMULATE LOCATION -->
+    <div class="sec">Simulate GPS location</div>
+    <div class="card" style="border-color:rgba(255,107,53,.3);display:flex;flex-direction:column;gap:10px">
+      <div>
+        <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Select driver</label>
+        <select id="dev-sim-driver" style="margin-top:4px">
+          <option value="">-- Pick a driver --</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Latitude</label>
+          <input id="dev-lat" placeholder="e.g. 39.2904" style="margin-top:4px" />
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Longitude</label>
+          <input id="dev-lng" placeholder="e.g. -76.6122" style="margin-top:4px" />
+        </div>
+      </div>
+      <button class="btn btn-outline" onclick="useMyLocation()" style="font-size:12px">📍 Use My Current Location</button>
+      <div>
+        <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Destination (search)</label>
+        <input id="dev-dest-search" placeholder="Search destination..." autocomplete="off" style="margin-top:4px" />
+        <div id="dev-dest-list" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-top:4px;overflow:hidden"></div>
+      </div>
+      <button class="btn" style="background:#ff6b35;color:#fff;width:100%" onclick="simulateDriverLocation()">Push to Firebase</button>
+      <div id="dev-sim-msg" style="display:none;font-size:12px;font-weight:600;color:var(--green)"></div>
+    </div>
+
+    <!-- DEV MAP -->
+    <div class="sec">Live test map — drag drivers to simulate</div>
+    <div class="card" style="padding:10px;border-color:rgba(255,107,53,.3)">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
+        🟠 Drag any driver marker to a new location — route and pricing update automatically
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <select id="dev-map-driver" style="flex:1;font-size:12px;padding:8px">
+          <option value="">-- Select driver to place --</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="placeDriverOnMap()" style="white-space:nowrap">📍 Place</button>
+      </div>
+      <div id="dev-google-map" style="width:100%;height:320px;border-radius:10px;overflow:hidden;border:1px solid var(--border)"></div>
+      <div id="dev-map-info" style="display:none;margin-top:8px;background:var(--surface2);border-radius:8px;padding:10px;font-size:12px">
+        <div id="dev-map-driver-name" style="font-weight:700;color:#ff6b35;margin-bottom:4px"></div>
+        <div id="dev-map-route-info" style="color:var(--muted);line-height:1.6"></div>
+        <div id="dev-map-fare" style="font-size:18px;font-weight:800;color:var(--green);margin-top:4px"></div>
+      </div>
+    </div>
+
+    <!-- CUSTOM TRIP LOCATION -->
+    <div class="sec">Simulate trip with custom locations</div>
+    <div class="card" style="border-color:rgba(255,107,53,.3);display:flex;flex-direction:column;gap:10px">
+      <div>
+        <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Driver</label>
+        <select id="dev-trip-driver" style="margin-top:4px">
+          <option value="">-- Select driver --</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Pickup location</label>
+        <input id="dev-trip-pickup" placeholder="Search pickup..." autocomplete="off" style="margin-top:4px" />
+        <div id="dev-trip-pickup-list" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-top:4px;overflow:hidden"></div>
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Destination</label>
+        <input id="dev-trip-dest" placeholder="Search destination..." autocomplete="off" style="margin-top:4px" />
+        <div id="dev-trip-dest-list" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-top:4px;overflow:hidden"></div>
+      </div>
+      <div id="dev-trip-preview" style="display:none;background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;display:none;flex-direction:column;gap:4px">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Distance</span><span id="dev-trip-dist" style="font-weight:600"></span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Duration</span><span id="dev-trip-dur" style="font-weight:600"></span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Est. fare</span><span id="dev-trip-fare" style="font-weight:700;color:var(--green)"></span></div>
+      </div>
+      <button class="btn" style="background:#ff6b35;color:#fff;width:100%" onclick="simulateCustomTrip()">Simulate This Trip</button>
+      <div id="dev-trip-msg" style="display:none;font-size:12px;font-weight:600;color:var(--green)"></div>
+    </div>
+
+    <!-- QUICK ACTIONS -->
+    <div class="sec">Quick actions</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn btn-outline" style="font-size:12px;padding:10px" onclick="devLoginAs()">Login as driver</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:10px" onclick="devClearAll()">Clear all test data</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:10px" onclick="devOpenAdmin()">Open admin view</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:10px" onclick="devTestRadio()">Test radio replay</button>
+    </div>
+
+    <!-- TEST LOG -->
+    <div class="sec">Test log</div>
+    <div id="dev-log" style="background:var(--surface2);border-radius:10px;padding:12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-height:80px;max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+      <div style="color:#ff6b35">🛠️ Dev mode ready</div>
+    </div>
+
+    <button class="btn btn-red" style="width:100%" onclick="show('role')">Exit Dev Mode</button>
+
+  </div>
+</div>
+
 <div class="screen" id="screen-login">
   <div class="scroll" style="justify-content:center;padding:24px;gap:14px">
     <button class="btn btn-outline btn-sm" onclick="show('role')" style="width:90px;align-self:flex-start">← Back</button>
@@ -592,6 +756,11 @@
       </div>
       <!-- AUTOCOMPLETE DROPDOWN -->
       <div id="driver-autocomplete-list" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-top:4px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.3)"></div>
+      <!-- RECENT SEARCHES -->
+      <div id="recent-searches-box" style="display:none;margin-top:8px;padding-bottom:8px">
+        <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">🕐 Recent searches</div>
+        <div id="recent-searches-list" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
     </div>
     <!-- SELECTED DESTINATION CARD -->
     <div id="driver-dest-card" style="display:none;margin:8px 12px 0;background:rgba(34,211,122,.08);border:1px solid rgba(34,211,122,.3);border-radius:10px;padding:10px 12px">
@@ -1001,13 +1170,596 @@ let pttStartTime = null;
 let currentChannel = 'dispatch';
 let agoraJoined = false;
 
-// --- SCREEN NAVIGATION ---
+// --- DEV MODE ---
+let devDrivers = JSON.parse(localStorage.getItem('devDrivers') || '[]');
+let devDestination = null;
+
+function devLog(msg, color = 'var(--muted)') {
+  const log = document.getElementById('dev-log');
+  if (!log) return;
+  const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  log.insertAdjacentHTML('afterbegin', `<div style="color:${color}">[${time}] ${msg}</div>`);
+}
+
+function createDevDriver() {
+  const first = document.getElementById('dev-first-name').value.trim();
+  const last = document.getElementById('dev-last-name').value.trim();
+  const id = document.getElementById('dev-driver-id').value.trim().toUpperCase();
+  const pass = document.getElementById('dev-password').value.trim();
+  const make = document.getElementById('dev-make').value.trim();
+  const model = document.getElementById('dev-model').value.trim();
+  const color = document.getElementById('dev-color').value.trim();
+  const plate = document.getElementById('dev-plate').value.trim().toUpperCase();
+  const msg = document.getElementById('dev-create-msg');
+  if (!first || !last || !id || !pass) {
+    msg.textContent = 'Please fill in name, ID and password.';
+    msg.style.color = 'var(--red)'; msg.style.display = 'block'; return;
+  }
+  const driver = { id, name: `${first} ${last}`, pass, vehicle: { make, model, color, plate }, createdAt: Date.now() };
+  drivers[id] = { name: driver.name, pass };
+  devDrivers = devDrivers.filter(d => d.id !== id);
+  devDrivers.unshift(driver);
+  try { localStorage.setItem('devDrivers', JSON.stringify(devDrivers)); } catch(e) {}
+  msg.textContent = `✓ Driver ${driver.name} (${id}) created!`;
+  msg.style.color = 'var(--green)'; msg.style.display = 'block';
+  devLog(`Created: ${driver.name} (${id}) — ${color} ${make} ${model} • ${plate}`, '#ff6b35');
+  ['dev-first-name','dev-last-name','dev-driver-id','dev-password','dev-make','dev-model','dev-color','dev-plate']
+    .forEach(f => document.getElementById(f).value = '');
+  renderDevDrivers();
+  updateDevSimSelect();
+}
+
+function renderDevDrivers() {
+  const list = document.getElementById('dev-drivers-list');
+  if (!list) return;
+  if (devDrivers.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">No test drivers yet — create one above</div>`;
+    return;
+  }
+  list.innerHTML = devDrivers.map(d =>
+    `<div class="card" style="border-color:rgba(255,107,53,.2);padding:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div class="avatar" style="background:rgba(255,107,53,.2);color:#ff6b35;width:36px;height:36px;font-size:12px">${d.name.split(' ').map(w=>w[0]).join('').slice(0,2)}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:13px">${d.name}</div>
+          <div style="font-size:11px;color:var(--muted)">ID: ${d.id} • Pass: ${d.pass}</div>
+          ${d.vehicle?.make ? `<div style="font-size:11px;color:var(--muted)">${d.vehicle.color} ${d.vehicle.make} ${d.vehicle.model} • ${d.vehicle.plate}</div>` : ''}
+        </div>
+        <button onclick="deleteDevDriver('${d.id}')" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer">🗑</button>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-outline btn-sm" style="flex:1;font-size:11px" onclick="devLoginAsDriver('${d.id}')">Login as ${d.name.split(' ')[0]}</button>
+        <button class="btn btn-outline btn-sm" style="flex:1;font-size:11px" onclick="devPushGPS('${d.id}')">Push GPS</button>
+      </div>
+    </div>`
+  ).join('');
+}
+
+function deleteDevDriver(id) {
+  devDrivers = devDrivers.filter(d => d.id !== id);
+  delete drivers[id];
+  try { localStorage.setItem('devDrivers', JSON.stringify(devDrivers)); } catch(e) {}
+  db.collection('drivers').doc(id).delete().catch(()=>{});
+  renderDevDrivers(); updateDevSimSelect();
+  devLog(`Deleted driver ${id}`, 'var(--red)');
+}
+
+function updateDevSimSelect() {
+  const sel = document.getElementById('dev-sim-driver');
+  if (!sel) return;
+  sel.innerHTML = `<option value="">-- Pick a driver --</option>` +
+    Object.entries(drivers).map(([id, d]) => `<option value="${id}">${d.name} (${id})</option>`).join('');
+}
+
+function useMyLocation() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    document.getElementById('dev-lat').value = pos.coords.latitude.toFixed(6);
+    document.getElementById('dev-lng').value = pos.coords.longitude.toFixed(6);
+    devLog(`Got location: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`, 'var(--green)');
+  });
+}
+
+function devPushGPS(id) {
+  document.getElementById('dev-sim-driver').value = id;
+  useMyLocation();
+  setTimeout(() => simulateDriverLocation(), 1500);
+}
+
+function simulateDriverLocation() {
+  const driverId = document.getElementById('dev-sim-driver').value;
+  const lat = parseFloat(document.getElementById('dev-lat').value);
+  const lng = parseFloat(document.getElementById('dev-lng').value);
+  if (!driverId) { devLog('Select a driver first', 'var(--red)'); return; }
+  if (isNaN(lat) || isNaN(lng)) { devLog('Enter valid coordinates or use My Location', 'var(--red)'); return; }
+  const driverName = drivers[driverId]?.name || driverId;
+  const data = { name: driverName, lat, lng, status: 'on_duty', updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+  if (devDestination) {
+    Object.assign(data, { destName: devDestination.name, destAddr: devDestination.addr, destLat: devDestination.lat, destLng: devDestination.lng });
+    if (window.google) {
+      const svc = new google.maps.DirectionsService();
+      svc.route({ origin:{lat,lng}, destination:{lat:devDestination.lat,lng:devDestination.lng}, travelMode:google.maps.TravelMode.DRIVING }, (result, status) => {
+        if (status === 'OK') {
+          const leg = result.routes[0].legs[0];
+          const miles = (leg.distance.value/1609.34).toFixed(1);
+          const estLow = (5 + parseFloat(miles)*2.50).toFixed(2);
+          const estHigh = (parseFloat(estLow)+3).toFixed(2);
+          db.collection('drivers').doc(driverId).update({ distanceText:leg.distance.text, durationText:leg.duration.text, estFareLow:estLow, estFareHigh:estHigh });
+          devLog(`Route: ${leg.distance.text} • ${leg.duration.text} • Est $${estLow}–$${estHigh}`, '#ff6b35');
+        }
+      });
+    }
+  }
+  db.collection('drivers').doc(driverId).set(data, {merge:true})
+    .then(() => {
+      document.getElementById('dev-sim-msg').textContent = `✓ ${driverName} pushed to map!`;
+      document.getElementById('dev-sim-msg').style.display = 'block';
+      devLog(`Pushed ${driverName} → ${lat.toFixed(4)}, ${lng.toFixed(4)}`, 'var(--green)');
+    }).catch(e => devLog(`Error: ${e.message}`, 'var(--red)'));
+}
+
+function initDevDestSearch() {
+  const input = document.getElementById('dev-dest-search');
+  if (!input || !window.autocompleteService) return;
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    if (q.length < 2) { document.getElementById('dev-dest-list').style.display='none'; return; }
+    autocompleteService.getPlacePredictions({input:q}, (predictions, status) => {
+      const list = document.getElementById('dev-dest-list');
+      if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) { list.style.display='none'; return; }
+      list.innerHTML = predictions.slice(0,4).map(p =>
+        `<div onclick="selectDevDest('${p.place_id}','${p.description.replace(/'/g,"\\'")}')"
+          style="padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12px"
+          onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+          <div style="font-weight:600">${p.structured_formatting.main_text}</div>
+          <div style="color:var(--muted);font-size:11px">${p.structured_formatting.secondary_text||''}</div>
+        </div>`
+      ).join('');
+      list.style.display = 'block';
+    });
+  });
+}
+
+function selectDevDest(placeId, description) {
+  document.getElementById('dev-dest-list').style.display = 'none';
+  document.getElementById('dev-dest-search').value = description;
+  if (!geocoder) return;
+  geocoder.geocode({placeId}, (results, status) => {
+    if (status !== 'OK' || !results[0]) return;
+    const loc = results[0].geometry.location;
+    devDestination = { name: results[0].address_components[0]?.long_name||description, addr: results[0].formatted_address, lat: loc.lat(), lng: loc.lng() };
+    devLog(`Destination: ${devDestination.name}`, '#ff6b35');
+  });
+}
+
+function devLoginAsDriver(id) {
+  if (!drivers[id]) return;
+  currentRole = 'driver'; currentDriver = id;
+  document.getElementById('d-name-hdr').textContent = drivers[id].name;
+  buildRR(); buildRadioLog();
+  show('driver'); initAgora();
+  devLog(`Logged in as ${drivers[id].name}`, 'var(--green)');
+}
+
+function devLoginAs() {
+  const sel = document.getElementById('dev-sim-driver');
+  if (sel?.value) devLoginAsDriver(sel.value);
+  else devLog('Select a driver first', 'var(--red)');
+}
+
+function devOpenAdmin() {
+  show('admin');
+  setTimeout(() => { initAdminMap(); startAdminDataListener(); }, 500);
+}
+
+function devClearAll() {
+  devDrivers.forEach(d => db.collection('drivers').doc(d.id).delete().catch(()=>{}));
+  devDrivers = [];
+  try { localStorage.removeItem('devDrivers'); } catch(e) {}
+  renderDevDrivers(); updateDevSimSelect();
+  devLog('Cleared all test data', 'var(--red)');
+}
+
+function devSimulateTrip() {
+  const sel = document.getElementById('dev-sim-driver');
+  if (!sel?.value) { devLog('Select a driver first', 'var(--red)'); return; }
+  simulateCustomTripForDriver(sel.value, {lat:39.2904,lng:-76.6122}, {lat:39.1774,lng:-76.6684,name:'BWI Airport',addr:'Baltimore/Washington International Airport, MD'});
+}
+
+// --- DEV GOOGLE MAP ---
+let devMap = null;
+let devDriverMarkers = {};
+let devRouteRenderers = {};
+let devDestMarkers = {};
+let devTripPickup = null;
+let devTripDest = null;
+
+function initDevMap() {
+  if (!mapsReady || devMap) return;
+  const el = document.getElementById('dev-google-map');
+  if (!el) return;
+  devMap = new google.maps.Map(el, {
+    zoom: 12,
+    center: { lat: 39.2904, lng: -76.6122 },
+    styles: darkMapStyle(),
+    disableDefaultUI: true,
+    zoomControl: true,
+    gestureHandling: 'greedy'
+  });
+  new google.maps.TrafficLayer().setMap(devMap);
+  devLog('Dev map initialized', '#ff6b35');
+}
+
+function placeDriverOnMap() {
+  const sel = document.getElementById('dev-map-driver');
+  const id = sel?.value;
+  if (!id) { devLog('Select a driver first', 'var(--red)'); return; }
+  if (!devMap) { initDevMap(); setTimeout(() => placeDriverOnMap(), 800); return; }
+  const driver = drivers[id];
+  if (!driver) return;
+  const center = devMap.getCenter();
+  const pos = { lat: center.lat() + (Math.random()-.5)*.02, lng: center.lng() + (Math.random()-.5)*.02 };
+  addDraggableDriverMarker(id, driver.name, pos);
+}
+
+function addDraggableDriverMarker(id, name, pos) {
+  const colors = { C1:'#f5c518', C2:'#4f9eff', C3:'#a78bfa', C4:'#22d37a' };
+  const color = colors[id] || '#ff6b35';
+
+  if (devDriverMarkers[id]) devDriverMarkers[id].setMap(null);
+
+  const marker = new google.maps.Marker({
+    map: devMap,
+    position: pos,
+    title: name,
+    draggable: true,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 12,
+      fillColor: color,
+      fillOpacity: 1,
+      strokeColor: '#0f1117',
+      strokeWeight: 2
+    },
+    label: { text: name.split(' ')[0][0], color: '#0f1117', fontWeight: 'bold', fontSize: '12px' }
+  });
+
+  devDriverMarkers[id] = marker;
+
+  // Info window
+  const infoWin = new google.maps.InfoWindow({
+    content: `<div style="font-family:'Segoe UI',sans-serif;padding:4px">
+      <div style="font-weight:700;color:#1a1a2e">${name} (${id})</div>
+      <div style="font-size:11px;color:#666">Drag to move • Click destination to route</div>
+    </div>`
+  });
+  marker.addListener('click', () => infoWin.open(devMap, marker));
+
+  // Push to Firebase on drag end
+  marker.addListener('dragend', () => {
+    const newPos = marker.getPosition();
+    const lat = newPos.lat();
+    const lng = newPos.lng();
+    devLog(`${name} dragged to ${lat.toFixed(4)}, ${lng.toFixed(4)}`, '#ff6b35');
+
+    // Update Firebase
+    db.collection('drivers').doc(id).set({
+      name, lat, lng, status: 'on_duty',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    // Recalculate route if destination exists
+    if (devDestMarkers[id]) {
+      const destPos = devDestMarkers[id].getPosition();
+      calculateAndDrawRoute(id, name, { lat, lng }, { lat: destPos.lat(), lng: destPos.lng() });
+    }
+
+    // Show info panel
+    document.getElementById('dev-map-info').style.display = 'block';
+    document.getElementById('dev-map-driver-name').textContent = `${name} — dragged to new position`;
+    document.getElementById('dev-map-route-info').textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  });
+
+  // Click map to set destination for this driver
+  if (!devMap._destClickListener) {
+    devMap._destClickListener = devMap.addListener('click', (e) => {
+      const activeId = document.getElementById('dev-map-driver').value;
+      if (!activeId || !devDriverMarkers[activeId]) return;
+      const destPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+      placeDevDestMarker(activeId, drivers[activeId]?.name || activeId, destPos);
+    });
+  }
+
+  // Push initial position
+  db.collection('drivers').doc(id).set({
+    name, lat: pos.lat, lng: pos.lng, status: 'on_duty',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+
+  devMap.panTo(pos);
+  devLog(`Placed ${name} on map — drag to move, click map to set destination`, '#ff6b35');
+}
+
+function placeDevDestMarker(driverId, driverName, pos) {
+  if (devDestMarkers[driverId]) devDestMarkers[driverId].setMap(null);
+  const destMarker = new google.maps.Marker({
+    map: devMap,
+    position: pos,
+    draggable: true,
+    title: `${driverName} destination`,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 8,
+      fillColor: '#4f9eff',
+      fillOpacity: 0.9,
+      strokeColor: '#0f1117',
+      strokeWeight: 2
+    }
+  });
+  devDestMarkers[driverId] = destMarker;
+
+  destMarker.addListener('dragend', () => {
+    const driverMarker = devDriverMarkers[driverId];
+    if (!driverMarker) return;
+    const driverPos = driverMarker.getPosition();
+    const destPos2 = destMarker.getPosition();
+    calculateAndDrawRoute(driverId, driverName,
+      { lat: driverPos.lat(), lng: driverPos.lng() },
+      { lat: destPos2.lat(), lng: destPos2.lng() }
+    );
+  });
+
+  const driverMarker = devDriverMarkers[driverId];
+  if (driverMarker) {
+    calculateAndDrawRoute(driverId, driverName,
+      { lat: driverMarker.getPosition().lat(), lng: driverMarker.getPosition().lng() },
+      pos
+    );
+  }
+}
+
+function calculateAndDrawRoute(driverId, driverName, origin, dest) {
+  if (!window.google) return;
+  if (devRouteRenderers[driverId]) devRouteRenderers[driverId].setMap(null);
+
+  const renderer = new google.maps.DirectionsRenderer({
+    map: devMap,
+    suppressMarkers: true,
+    polylineOptions: { strokeColor: '#4f9eff', strokeWeight: 5, strokeOpacity: 0.9 }
+  });
+  devRouteRenderers[driverId] = renderer;
+
+  const svc = new google.maps.DirectionsService();
+  svc.route({
+    origin, destination: dest,
+    travelMode: google.maps.TravelMode.DRIVING
+  }, (result, status) => {
+    if (status !== 'OK') { devLog(`Route error: ${status}`, 'var(--red)'); return; }
+    renderer.setDirections(result);
+    const leg = result.routes[0].legs[0];
+    const miles = (leg.distance.value / 1609.34).toFixed(1);
+    const estLow = (5 + parseFloat(miles) * 2.50).toFixed(2);
+    const estHigh = (parseFloat(estLow) + 3).toFixed(2);
+
+    // Update Firebase with route info
+    db.collection('drivers').doc(driverId).update({
+      destLat: dest.lat, destLng: dest.lng,
+      distanceText: leg.distance.text,
+      durationText: leg.duration.text,
+      estFareLow: estLow, estFareHigh: estHigh
+    });
+
+    // Update info panel
+    document.getElementById('dev-map-info').style.display = 'block';
+    document.getElementById('dev-map-driver-name').textContent = `${driverName}`;
+    document.getElementById('dev-map-route-info').textContent =
+      `📍 ${leg.distance.text} • ⏱ ${leg.duration.text} • 🛣️ ${miles} mi`;
+    document.getElementById('dev-map-fare').textContent = `Est. $${estLow} – $${estHigh}`;
+
+    devLog(`Route: ${leg.distance.text} • ${leg.duration.text} • $${estLow}–$${estHigh}`, 'var(--green)');
+  });
+}
+
+// --- CUSTOM TRIP SIMULATION ---
+function initDevTripSearch() {
+  setupDevSearch('dev-trip-pickup', 'dev-trip-pickup-list', (placeId, desc, addr, lat, lng) => {
+    devTripPickup = { placeId, desc, addr, lat, lng };
+    devLog(`Pickup set: ${desc}`, '#ff6b35');
+    if (devTripPickup && devTripDest) previewCustomTrip();
+  });
+  setupDevSearch('dev-trip-dest', 'dev-trip-dest-list', (placeId, desc, addr, lat, lng) => {
+    devTripDest = { placeId, desc, addr, lat, lng };
+    devLog(`Destination set: ${desc}`, '#ff6b35');
+    if (devTripPickup && devTripDest) previewCustomTrip();
+  });
+}
+
+function setupDevSearch(inputId, listId, onSelect) {
+  const input = document.getElementById(inputId);
+  if (!input || !window.autocompleteService) return;
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    if (q.length < 2) { document.getElementById(listId).style.display='none'; return; }
+    autocompleteService.getPlacePredictions({input:q}, (predictions, status) => {
+      const list = document.getElementById(listId);
+      if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) { list.style.display='none'; return; }
+      list.innerHTML = predictions.slice(0,4).map(p =>
+        `<div onclick="resolveDevPlace('${p.place_id}','${p.description.replace(/'/g,"\\'")}','${inputId}','${listId}')"
+          style="padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12px"
+          onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+          <div style="font-weight:600">${p.structured_formatting.main_text}</div>
+          <div style="color:var(--muted);font-size:11px">${p.structured_formatting.secondary_text||''}</div>
+        </div>`
+      ).join('');
+      list.style.display = 'block';
+    });
+  });
+}
+
+function resolveDevPlace(placeId, desc, inputId, listId) {
+  document.getElementById(listId).style.display = 'none';
+  document.getElementById(inputId).value = desc;
+  geocoder.geocode({placeId}, (results, status) => {
+    if (status !== 'OK' || !results[0]) return;
+    const loc = results[0].geometry.location;
+    const data = { placeId, desc, addr: results[0].formatted_address, lat: loc.lat(), lng: loc.lng() };
+    if (inputId === 'dev-trip-pickup') { devTripPickup = data; }
+    else { devTripDest = data; }
+    if (devTripPickup && devTripDest) previewCustomTrip();
+  });
+}
+
+function previewCustomTrip() {
+  if (!devTripPickup || !devTripDest || !window.google) return;
+  const svc = new google.maps.DirectionsService();
+  svc.route({
+    origin: {lat:devTripPickup.lat, lng:devTripPickup.lng},
+    destination: {lat:devTripDest.lat, lng:devTripDest.lng},
+    travelMode: google.maps.TravelMode.DRIVING
+  }, (result, status) => {
+    if (status !== 'OK') return;
+    const leg = result.routes[0].legs[0];
+    const miles = (leg.distance.value/1609.34).toFixed(1);
+    const estLow = (5 + parseFloat(miles)*2.50).toFixed(2);
+    const estHigh = (parseFloat(estLow)+3).toFixed(2);
+    document.getElementById('dev-trip-preview').style.display = 'flex';
+    document.getElementById('dev-trip-dist').textContent = `${leg.distance.text} (${miles} mi)`;
+    document.getElementById('dev-trip-dur').textContent = leg.duration.text;
+    document.getElementById('dev-trip-fare').textContent = `$${estLow} – $${estHigh}`;
+  });
+}
+
+function simulateCustomTrip() {
+  const driverId = document.getElementById('dev-trip-driver').value;
+  if (!driverId) { devLog('Select a driver', 'var(--red)'); return; }
+  if (!devTripPickup) { devLog('Set a pickup location', 'var(--red)'); return; }
+  if (!devTripDest) { devLog('Set a destination', 'var(--red)'); return; }
+  const driverName = drivers[driverId]?.name || driverId;
+  simulateCustomTripForDriver(driverId,
+    {lat:devTripPickup.lat, lng:devTripPickup.lng},
+    {lat:devTripDest.lat, lng:devTripDest.lng, name:devTripDest.desc, addr:devTripDest.addr}
+  );
+}
+
+function simulateCustomTripForDriver(driverId, origin, dest) {
+  const driverName = drivers[driverId]?.name || driverId;
+  if (!window.google) {
+    // No maps yet, just push basic data
+    db.collection('drivers').doc(driverId).set({
+      name: driverName, lat: origin.lat, lng: origin.lng, status: 'on_duty',
+      destName: dest.name, destAddr: dest.addr, destLat: dest.lat, destLng: dest.lng,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, {merge:true}).then(() => devLog(`Simulated ${driverName} → ${dest.name}`, 'var(--green)'));
+    return;
+  }
+  const svc = new google.maps.DirectionsService();
+  svc.route({
+    origin, destination: {lat:dest.lat, lng:dest.lng},
+    travelMode: google.maps.TravelMode.DRIVING
+  }, (result, status) => {
+    if (status !== 'OK') { devLog(`Route error: ${status}`, 'var(--red)'); return; }
+    const leg = result.routes[0].legs[0];
+    const miles = (leg.distance.value/1609.34).toFixed(1);
+    const estLow = (5 + parseFloat(miles)*2.50).toFixed(2);
+    const estHigh = (parseFloat(estLow)+3).toFixed(2);
+    db.collection('drivers').doc(driverId).set({
+      name: driverName, lat: origin.lat, lng: origin.lng, status: 'on_duty',
+      destName: dest.name, destAddr: dest.addr, destLat: dest.lat, destLng: dest.lng,
+      distanceText: leg.distance.text, durationText: leg.duration.text,
+      estFareLow: estLow, estFareHigh: estHigh,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, {merge:true}).then(() => {
+      const msg = document.getElementById('dev-trip-msg');
+      if (msg) { msg.textContent = `✓ ${driverName} → ${dest.name} • ${leg.distance.text} • ${leg.duration.text} • $${estLow}–$${estHigh}`; msg.style.display='block'; }
+      devLog(`Trip: ${driverName} → ${dest.name} • ${leg.distance.text} • $${estLow}–$${estHigh}`, 'var(--green)');
+    });
+  });
+}
+
+// --- RADIO REPLAY TEST ---
+function devTestRadio() {
+  // Add sample transmissions to the radio log that are replayable
+  const log = document.getElementById('radio-log');
+  if (!log) { devLog('Open driver app first → Radio tab', 'var(--red)'); return; }
+  const samples = [
+    { name: 'Dispatch', color: 'var(--purple)', msg: 'Unit 12 pickup on 5th Ave' },
+    { name: 'Miguel A.', color: 'var(--yellow)', msg: 'Copy that, en route' },
+    { name: 'Marcos T.', color: 'var(--blue)', msg: 'Zone B clear, available' },
+  ];
+  samples.forEach((s, i) => {
+    setTimeout(() => {
+      const replayId = `dev_replay_${Date.now()}_${i}`;
+      const timeStr = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+      const dur = (Math.random()*4+1).toFixed(1);
+      const pct = Math.floor(Math.random()*50+30);
+
+      // Generate a beep sound as fake audio for replay testing
+      try {
+        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const dest = ctx.createMediaStreamDestination();
+        osc.connect(gain); gain.connect(dest);
+        osc.frequency.value = 440 + i*110;
+        gain.gain.value = 0.3;
+        const recorder = new MediaRecorder(dest.stream);
+        const chunks = [];
+        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, {type:'audio/webm'});
+          recordedAudios[replayId] = URL.createObjectURL(blob);
+          const btn = document.getElementById(replayId+'_btn');
+          if (btn) btn.style.display = 'inline-flex';
+        };
+        osc.start(); recorder.start();
+        setTimeout(() => { osc.stop(); recorder.stop(); ctx.close(); }, 800);
+      } catch(e) {}
+
+      log.insertAdjacentHTML('afterbegin',
+        `<div class="radio-msg" style="border:1px solid rgba(255,107,53,.3)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:13px;font-weight:700;color:${s.color}">${s.name} <span style="font-size:10px;color:var(--muted)">[TEST]</span></span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button id="${replayId}_btn" onclick="playReplay('${replayId}')" style="display:none;background:rgba(255,107,53,.15);border:1px solid rgba(255,107,53,.3);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:#ff6b35;font-family:'Syne',sans-serif">▶ Replay</button>
+              <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${timeStr}</span>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:5px">${dur}s • "${s.msg}"</div>
+          <div class="waveform"><div class="wave-fill" style="width:${pct}%;background:${s.color}"></div></div>
+        </div>`
+      );
+      devLog(`Added test transmission from ${s.name}`, '#ff6b35');
+    }, i * 300);
+  });
+}
+
+
+
+function initDevMode() {
+  renderDevDrivers();
+  updateDevSimSelect();
+  // Update all dev selects
+  const mapSel = document.getElementById('dev-map-driver');
+  const tripSel = document.getElementById('dev-trip-driver');
+  const allDrivers = Object.entries(drivers).map(([id,d]) => `<option value="${id}">${d.name} (${id})</option>`).join('');
+  if (mapSel) mapSel.innerHTML = `<option value="">-- Select driver to place --</option>` + allDrivers;
+  if (tripSel) tripSel.innerHTML = `<option value="">-- Select driver --</option>` + allDrivers;
+  // Init map and searches after delay for Google Maps to be ready
+  setTimeout(() => {
+    initDevMap();
+    initDevDestSearch();
+    initDevTripSearch();
+  }, 800);
+  devLog('Dev mode initialized — create drivers and test!', '#ff6b35');
+}
+
 // --- SCREEN NAVIGATION ---
 function show(s) {
   document.querySelectorAll('.screen').forEach(x => x.classList.remove('active'));
   const el = document.getElementById('screen-' + s);
   if (el) el.classList.add('active');
   if (s === 'driver-settings') populateSettings();
+  if (s === 'dev') initDevMode();
 }
 
 // --- LOADING SCREEN ---
@@ -1271,7 +2023,7 @@ function dTab(name, el) {
   document.querySelectorAll('#screen-driver .tab-btn').forEach(x => x.classList.remove('active'));
   document.getElementById('dtab-' + name).style.display = 'flex';
   el.classList.add('active');
-  if (name === 'map') setTimeout(initDriverMap, 100);
+  if (name === 'map') setTimeout(() => { initDriverMap(); initDriverSearchWithRecents(); renderRecentSearches(); }, 100);
 }
 
 // --- ADMIN TABS ---
@@ -1501,6 +2253,7 @@ async function startPTT(e) {
       }
     });
     await agoraClient.publish([localAudioTrack]);
+    startRecordingForReplay();
   } catch (err) {
     document.getElementById('ptt-status').textContent = 'Mic access denied — check browser permissions';
     document.getElementById('ptt-status').style.color = 'var(--red)';
@@ -1529,11 +2282,25 @@ async function stopPTT() {
   const durSec = pttStartTime ? ((Date.now() - pttStartTime) / 1000).toFixed(1) : '0.0';
   const timeStr = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
   const pct = Math.min(Math.round((parseFloat(durSec) / 30) * 100) + 15, 95);
+  const replayId = `replay_${replayCounter++}`;
+
+  // Stop recording and save for replay
+  stopRecordingForReplay().then(audioUrl => {
+    if (audioUrl) {
+      recordedAudios[replayId] = audioUrl;
+      const btn = document.getElementById(replayId + '_btn');
+      if (btn) btn.style.display = 'inline-flex';
+    }
+  });
+
   log.insertAdjacentHTML('afterbegin',
     `<div class="radio-msg" style="border:1px solid rgba(34,211,122,.3)">
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <span style="font-size:13px;font-weight:700;color:var(--green)">${name}</span>
-        <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${timeStr}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <button id="${replayId}_btn" onclick="playReplay('${replayId}')" style="display:none;background:rgba(34,211,122,.15);border:1px solid rgba(34,211,122,.3);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:var(--green);font-family:'Syne',sans-serif">▶ Replay</button>
+          <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${timeStr}</span>
+        </div>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-bottom:5px">${durSec}s transmission</div>
       <div class="waveform"><div class="wave-fill" style="width:${pct}%;background:var(--green)"></div></div>
@@ -1993,7 +2760,101 @@ function populateSettings() {
   document.getElementById('settings-avatar').textContent = d.name.split(' ').map(w=>w[0]).join('').slice(0,2);
 }
 
-// --- GOOGLE MAPS ---
+// --- RECENT SEARCHES ---
+let recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+
+function saveRecentSearch(placeId, description, addr) {
+  // Remove duplicate if exists
+  recentSearches = recentSearches.filter(s => s.placeId !== placeId);
+  // Add to front
+  recentSearches.unshift({ placeId, description, addr, time: Date.now() });
+  // Keep only last 5
+  recentSearches = recentSearches.slice(0, 5);
+  try { localStorage.setItem('recentSearches', JSON.stringify(recentSearches)); } catch(e) {}
+  renderRecentSearches();
+}
+
+function renderRecentSearches() {
+  const box = document.getElementById('recent-searches-box');
+  const list = document.getElementById('recent-searches-list');
+  if (!box || !list) return;
+  if (recentSearches.length === 0) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  list.innerHTML = recentSearches.map(s =>
+    `<div onclick="selectDriverPlace('${s.placeId}','${s.description.replace(/'/g,"\\'")}')"
+      style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:var(--surface2);cursor:pointer;border:1px solid var(--border)"
+      onmouseover="this.style.borderColor='rgba(245,197,24,.4)'" onmouseout="this.style.borderColor='var(--border)'">
+      <span style="font-size:16px;flex-shrink:0">🕐</span>
+      <div style="flex:1;overflow:hidden">
+        <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.description}</div>
+        <div style="font-size:11px;color:var(--muted)">${s.addr||''}</div>
+      </div>
+      <span style="font-size:11px;color:var(--muted);flex-shrink:0">${getTimeAgo(s.time)}</span>
+    </div>`
+  ).join('');
+}
+
+function getTimeAgo(ts) {
+  const mins = Math.floor((Date.now() - ts) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs/24)}d ago`;
+}
+
+// Show recent searches when input is focused and empty
+function initDriverSearchWithRecents() {
+  const input = document.getElementById('driver-search-input');
+  if (!input) return;
+  input.addEventListener('focus', () => {
+    if (!input.value.trim()) renderRecentSearches();
+  });
+  input.addEventListener('blur', () => {
+    setTimeout(() => {
+      const box = document.getElementById('recent-searches-box');
+      if (box && !input.value.trim()) box.style.display = 'none';
+    }, 200);
+  });
+}
+
+// --- AUDIO RECORDING FOR REPLAY ---
+let audioChunks = [];
+let mediaRecorderForReplay = null;
+let recordedAudios = {};
+let replayCounter = 0;
+
+async function startRecordingForReplay() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorderForReplay = new MediaRecorder(stream);
+    mediaRecorderForReplay.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorderForReplay.start();
+  } catch(e) { console.log('Replay recording not available:', e); }
+}
+
+function stopRecordingForReplay() {
+  return new Promise(resolve => {
+    if (!mediaRecorderForReplay || mediaRecorderForReplay.state === 'inactive') { resolve(null); return; }
+    mediaRecorderForReplay.onstop = () => {
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      const url = URL.createObjectURL(blob);
+      mediaRecorderForReplay.stream.getTracks().forEach(t => t.stop());
+      resolve(url);
+    };
+    mediaRecorderForReplay.stop();
+  });
+}
+
+function playReplay(replayId) {
+  const url = recordedAudios[replayId];
+  if (!url) return;
+  const audio = new Audio(url);
+  audio.play();
+}
+
+
 let driverMap = null;
 let adminMap = null;
 let driverMarker = null;
@@ -2127,6 +2988,10 @@ function selectDriverPlace(placeId, description) {
     const destLatLng = results[0].geometry.location;
     const destAddr = results[0].formatted_address;
     const destName = results[0].address_components[0]?.long_name || description;
+
+    // Save to recent searches
+    saveRecentSearch(placeId, description, destAddr);
+    document.getElementById('recent-searches-box').style.display = 'none';
 
     // Show destination card
     document.getElementById('driver-dest-card').style.display = 'block';
