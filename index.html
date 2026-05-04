@@ -1375,7 +1375,8 @@ let devTripPickup = null;
 let devTripDest = null;
 
 function initDevMap() {
-  if (!mapsReady || devMap) return;
+  if (!mapsReady) { setTimeout(initDevMap, 500); return; }
+  if (devMap) return;
   const el = document.getElementById('dev-google-map');
   if (!el) return;
   devMap = new google.maps.Map(el, {
@@ -2023,7 +2024,7 @@ function dTab(name, el) {
   document.querySelectorAll('#screen-driver .tab-btn').forEach(x => x.classList.remove('active'));
   document.getElementById('dtab-' + name).style.display = 'flex';
   el.classList.add('active');
-  if (name === 'map') setTimeout(() => { initDriverMap(); initDriverSearchWithRecents(); renderRecentSearches(); }, 100);
+  if (name === 'map') setTimeout(() => { initDriverMap(); initDriverSearchWithRecents(); renderRecentSearches(); }, 300);
 }
 
 // --- ADMIN TABS ---
@@ -2895,7 +2896,12 @@ function darkMapStyle() {
 
 // ─── DRIVER MAP ───────────────────────────────────────────
 function initDriverMap() {
-  if (!mapsReady || driverMap) return;
+  if (!mapsReady) {
+    // Maps not loaded yet — retry in 500ms
+    setTimeout(initDriverMap, 500);
+    return;
+  }
+  if (driverMap) return;
   const el = document.getElementById('driver-google-map');
   if (!el) return;
 
@@ -3080,7 +3086,8 @@ function updateDriverMapPosition(lat, lng) {
 
 // ─── ADMIN FLEET MAP ──────────────────────────────────────
 function initAdminMap() {
-  if (!mapsReady || adminMap) return;
+  if (!mapsReady) { setTimeout(initAdminMap, 500); return; }
+  if (adminMap) return;
   const el = document.getElementById('admin-google-map');
   if (!el) return;
 
