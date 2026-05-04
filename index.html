@@ -1,0 +1,2393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#f5c518">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CabLink">
+<meta name="description" content="CabLink by Taxi Latino — Driver dispatch, GPS tracking, and push-to-talk radio for your taxi fleet.">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-512.png">
+<title>CabLink — Taxi Latino</title>
+<script src="https://cdn.jsdelivr.net/npm/agora-rtc-sdk-ng@4.19.0/AgoraRTC_N-production.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBgfBq7U6BLpZIhMHNuAbwNxgKwyU8JRWY&libraries=places&callback=initGoogleMaps" async defer></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#0f1117;--surface:#181c27;--surface2:#1e2332;
+    --border:rgba(255,255,255,0.08);--text:#f0f2f7;--muted:#7a8099;
+    --yellow:#f5c518;--green:#22d37a;--red:#ff4f4f;--blue:#4f9eff;--purple:#a78bfa;
+  }
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;overflow:hidden}
+  #app{height:100vh;display:flex;flex-direction:column;max-width:480px;margin:0 auto;position:relative}
+  .screen{display:none;flex-direction:column;height:100%;overflow:hidden}
+  .screen.active{display:flex}
+
+  /* Scrollable content */
+  .scroll{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+  .scroll::-webkit-scrollbar{width:3px}
+  .scroll::-webkit-scrollbar-thumb{background:var(--border)}
+
+  /* Header */
+  .header{background:var(--surface);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);flex-shrink:0}
+  .header-title{font-size:16px;font-weight:800;color:var(--yellow);letter-spacing:-.3px}
+  .header-sub{font-size:11px;color:var(--muted);margin-top:1px}
+
+  /* Tab bar */
+  .tab-bar{display:flex;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
+  .tab-btn{flex:1;padding:9px 4px;text-align:center;cursor:pointer;font-size:10px;color:var(--muted);background:none;border:none;font-family:'Syne',sans-serif;font-weight:600;letter-spacing:.2px;transition:color .15s}
+  .tab-btn.active{color:var(--yellow)}
+  .tab-icon{font-size:17px;display:block;margin-bottom:2px}
+
+  /* Cards */
+  .card{background:var(--surface);border-radius:12px;border:1px solid var(--border);padding:14px}
+  .card.highlight{border-color:rgba(34,211,122,.35)}
+  .card.warn{border-color:rgba(245,197,24,.35)}
+
+  /* Badges */
+  .badge{display:inline-flex;align-items:center;border-radius:6px;font-size:11px;font-weight:700;padding:3px 10px;letter-spacing:.3px}
+  .badge-green{background:rgba(34,211,122,.15);color:var(--green)}
+  .badge-red{background:rgba(255,79,79,.15);color:var(--red)}
+  .badge-yellow{background:rgba(245,197,24,.15);color:var(--yellow)}
+  .badge-blue{background:rgba(79,158,255,.15);color:var(--blue)}
+  .badge-purple{background:rgba(167,139,250,.15);color:var(--purple)}
+
+  /* Buttons */
+  .btn{border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;padding:13px 20px;transition:opacity .15s,transform .1s;font-family:'Syne',sans-serif;letter-spacing:.2px}
+  .btn:active{transform:scale(.97)}
+  .btn-yellow{background:var(--yellow);color:var(--bg)}
+  .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+  .btn-green{background:var(--green);color:var(--bg)}
+  .btn-red{background:var(--red);color:#fff}
+  .btn-sm{font-size:12px;padding:8px 14px;border-radius:8px}
+
+  /* Inputs */
+  input,textarea,select{background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:11px 14px;width:100%;outline:none;font-family:'Syne',sans-serif;transition:border-color .15s}
+  input:focus,textarea:focus,select:focus{border-color:rgba(245,197,24,.4)}
+  input::placeholder,textarea::placeholder{color:var(--muted)}
+  select option{background:var(--surface2)}
+
+  /* Stat cards */
+  .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .stats-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .stat-box{background:var(--surface2);border-radius:10px;padding:12px;text-align:center}
+  .stat-val{font-size:20px;font-weight:800;color:var(--yellow);font-family:'DM Mono',monospace}
+  .stat-lbl{font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:.3px;text-transform:uppercase}
+
+  /* Section label */
+  .sec{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+
+  /* Map placeholder */
+  .map-box{background:var(--surface2);border-radius:12px;height:200px;position:relative;overflow:hidden;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px}
+  .map-label{font-size:13px;color:var(--muted)}
+  .map-coords{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+  .dot{width:13px;height:13px;border-radius:50%;position:absolute;border:2px solid var(--bg)}
+
+  /* Driver row */
+  .driver-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+  .driver-row:last-child{border-bottom:none}
+  .avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0}
+
+  /* PTT button */
+  .ptt-wrap{display:flex;align-items:center;justify-content:center;padding:20px 0}
+  .ptt{width:140px;height:140px;border-radius:50%;background:var(--surface2);border:3px solid var(--yellow);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:all .15s;user-select:none;-webkit-user-select:none}
+  .ptt.live{background:var(--green);border-color:var(--green);animation:pulsering 1s infinite}
+  @keyframes pulsering{0%,100%{box-shadow:0 0 0 0 rgba(34,211,122,.5)}60%{box-shadow:0 0 0 20px rgba(34,211,122,0)}}
+  .ptt-mic{font-size:36px}
+  .ptt-text{font-size:10px;font-weight:800;color:var(--text);letter-spacing:.5px}
+
+  /* Loading screen */
+  #screen-loading{background:var(--bg);align-items:center;justify-content:center;gap:16px}
+  .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--yellow);border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Role cards */
+  .role-card{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:18px;cursor:pointer;transition:border-color .2s,transform .1s;display:flex;flex-direction:column;gap:10px}
+  .role-card:active{transform:scale(.98)}
+  .role-card.customer{border-color:rgba(79,158,255,.2)}
+  .role-card.customer:hover{border-color:rgba(79,158,255,.5)}
+  .role-card.driver-card{border-color:rgba(245,197,24,.2)}
+  .role-card.driver-card:hover{border-color:rgba(245,197,24,.5)}
+  .role-card.admin-card{border-color:rgba(167,139,250,.2)}
+  .role-card.admin-card:hover{border-color:rgba(167,139,250,.5)}
+
+  /* Error box */
+  .error-box{background:rgba(255,79,79,.1);border:1px solid rgba(255,79,79,.3);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--red);display:none}
+
+  /* Broadcast log */
+  .bcast-msg{background:var(--surface2);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+
+  /* Trip card */
+  .trip-row{background:var(--surface2);border-radius:10px;border:1px solid var(--border);padding:12px;display:flex;flex-direction:column;gap:8px}
+  .trip-row.active{border-color:rgba(34,211,122,.4)}
+
+  /* RR row */
+  .rr-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:8px;background:var(--surface2);margin-bottom:6px}
+
+  /* Clock display */
+  .clock-display{font-size:38px;font-weight:800;font-family:'DM Mono',monospace;color:var(--yellow);letter-spacing:-1px}
+  .date-display{font-size:12px;color:var(--muted);margin-top:3px}
+  .shift-display{font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:var(--text)}
+
+  /* Radio log */
+  .radio-msg{background:var(--surface2);border-radius:10px;padding:10px 12px}
+  .waveform{height:6px;background:var(--surface);border-radius:4px;overflow:hidden;margin-top:6px}
+  .wave-fill{height:100%;border-radius:4px;background:var(--yellow)}
+
+  /* Add driver modal */
+  .modal-wrap{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:center;justify-content:center;padding:20px}
+  .modal-wrap.open{display:flex}
+  .modal{background:var(--surface);border-radius:16px;padding:20px;width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px}
+
+  /* Connection status */
+  .conn-dot{width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;margin-right:6px}
+  .conn-dot.connected{background:var(--green);animation:blink 2s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- LOADING -->
+<div class="screen" id="screen-loading">
+  <div class="spinner"></div>
+  <div id="loading-msg" style="color:var(--muted);font-size:14px;font-weight:600">Starting CabLink...</div>
+</div>
+
+<!-- ROLE SELECT -->
+<div class="screen" id="screen-role">
+  <div class="scroll" style="justify-content:center;padding:24px">
+
+    <!-- LANGUAGE TOGGLE -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+      <div style="display:flex;background:var(--surface2);border-radius:20px;padding:3px;gap:2px;border:1px solid var(--border)">
+        <button id="lang-btn-en" onclick="setAppLang('en')"
+          style="background:var(--yellow);color:var(--bg);border:none;border-radius:16px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif;transition:all .15s">
+          🇺🇸 EN
+        </button>
+        <button id="lang-btn-es" onclick="setAppLang('es')"
+          style="background:transparent;color:var(--muted);border:none;border-radius:16px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif;transition:all .15s">
+          🇪🇸 ES
+        </button>
+      </div>
+    </div>
+
+    <!-- LOGO -->
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:32px;font-weight:800;color:var(--yellow);letter-spacing:-1px">CabLink</div>
+      <div id="role-subtitle" style="font-size:13px;color:var(--muted);margin-top:4px">Taxi Latino — Select your role</div>
+    </div>
+
+    <!-- ROLE CARDS -->
+    <div class="role-card customer" onclick="selectRole('customer')">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:26px">🧑</span>
+        <div>
+          <div id="role-customer-title" style="font-weight:800;color:var(--blue);font-size:16px">Customer</div>
+          <div id="role-customer-sub" style="font-size:12px;color:var(--muted)">Book & track rides</div>
+        </div>
+      </div>
+      <div id="role-customer-bullets" style="font-size:12px;color:var(--muted);line-height:1.8">• Book a ride in seconds<br>• Track your driver live on the map<br>• View ride history & receipts</div>
+    </div>
+
+    <div class="role-card driver-card" onclick="selectRole('driver')" style="margin-top:12px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:26px">🚕</span>
+        <div>
+          <div id="role-driver-title" style="font-weight:800;color:var(--yellow);font-size:16px">Driver</div>
+          <div id="role-driver-sub" style="font-size:12px;color:var(--muted)">Clock in, radio, earnings</div>
+        </div>
+      </div>
+      <div id="role-driver-bullets" style="font-size:12px;color:var(--muted);line-height:1.8">• Clock in/out with GPS tracking<br>• Push-to-talk radio dispatch<br>• Track earnings & trips in real time</div>
+    </div>
+
+    <div class="role-card admin-card" onclick="selectRole('admin')" style="margin-top:12px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:26px">🖥️</span>
+        <div>
+          <div id="role-admin-title" style="font-weight:800;color:var(--purple);font-size:16px">Admin / Dispatch</div>
+          <div id="role-admin-sub" style="font-size:12px;color:var(--muted)">Manage fleet & drivers</div>
+        </div>
+      </div>
+      <div id="role-admin-bullets" style="font-size:12px;color:var(--muted);line-height:1.8">• Live map of all drivers<br>• Add & manage drivers instantly<br>• Broadcast messages to all drivers</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div class="screen" id="screen-login">
+  <div class="scroll" style="justify-content:center;padding:24px;gap:14px">
+    <button class="btn btn-outline btn-sm" onclick="show('role')" style="width:90px;align-self:flex-start">← Back</button>
+    <div style="text-align:center">
+      <div id="login-badge" class="badge badge-yellow" style="font-size:13px;padding:6px 18px;margin-bottom:10px">Driver</div>
+      <div style="font-size:24px;font-weight:800">Sign In</div>
+    </div>
+    <div id="login-role-desc" class="card" style="padding:12px;gap:6px;display:flex;flex-direction:column"></div>
+    <div class="error-box" id="login-error"></div>
+    <input id="login-id" placeholder="Driver ID / Username" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" />
+    <input id="login-pass" type="password" placeholder="Password" autocomplete="off" />
+    <button class="btn btn-yellow" style="width:100%" onclick="doLogin()">Sign In</button>
+    <div id="quick-section">
+      <div style="text-align:center;font-size:12px;color:var(--muted);margin:4px 0 10px">— Quick access —</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="quick-btns"></div>
+    </div>
+    <div id="guest-section" style="display:none;margin-top:4px">
+      <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:10px">— or —</div>
+      <button class="btn btn-outline" style="width:100%" onclick="show('guest')">Continue as Guest</button>
+    </div>
+  </div>
+</div>
+
+<!-- GUEST SCREEN -->
+<div class="screen" id="screen-guest">
+  <div class="scroll" style="justify-content:center;padding:24px;gap:14px">
+    <button class="btn btn-outline btn-sm" onclick="show('login')" style="width:90px;align-self:flex-start">← Back</button>
+    <div style="text-align:center">
+      <span class="badge badge-blue" style="font-size:13px;padding:6px 18px;margin-bottom:10px">Guest Access</span>
+      <div style="font-size:24px;font-weight:800;margin-top:8px">Welcome!</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:6px">No account needed — just enter your name</div>
+    </div>
+    <div class="error-box" id="guest-error"></div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <label style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Full Name <span style="color:var(--red)">*</span></label>
+      <input id="guest-name" placeholder="e.g. Maria Garcia" autocomplete="off" />
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <label style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Preferred Name <span style="color:var(--muted)">(optional)</span></label>
+      <input id="guest-preferred" placeholder="What should we call you?" autocomplete="off" />
+    </div>
+    <button class="btn btn-blue" style="width:100%;background:var(--blue);color:#fff" onclick="doGuestLogin()">Enter as Guest</button>
+    <div style="font-size:12px;color:var(--muted);text-align:center;line-height:1.6">As a guest you can book rides and track your driver. Your ride history won't be saved.</div>
+  </div>
+</div>
+
+<!-- CUSTOMER APP -->
+<div class="screen" id="screen-customer">
+  <div class="header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="avatar" id="cust-initials" style="background:rgba(79,158,255,.2);color:var(--blue);width:34px;height:34px;font-size:12px">G</div>
+      <div>
+        <div class="header-title" style="color:var(--blue)">CabLink</div>
+        <div class="header-sub" id="cust-header-name">Guest</div>
+      </div>
+    </div>
+    <span class="badge badge-blue">GUEST</span>
+  </div>
+
+  <!-- BOOK TAB -->
+  <div class="scroll active" id="ctab-book" style="padding:0;gap:0">
+
+    <!-- STEP INDICATOR -->
+    <div style="padding:14px 16px 10px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center">
+      <div style="display:flex;align-items:center;gap:6px;flex:1">
+        <div id="pip1-circle" style="width:24px;height:24px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">1</div>
+        <span id="pip1-label" style="font-size:11px;font-weight:700;color:var(--blue)">Where</span>
+      </div>
+      <div style="height:1px;width:20px;background:var(--border);margin:0 4px"></div>
+      <div style="display:flex;align-items:center;gap:6px;flex:1">
+        <div id="pip2-circle" style="width:24px;height:24px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--muted);flex-shrink:0">2</div>
+        <span id="pip2-label" style="font-size:11px;font-weight:700;color:var(--muted)">Ride</span>
+      </div>
+      <div style="height:1px;width:20px;background:var(--border);margin:0 4px"></div>
+      <div style="display:flex;align-items:center;gap:6px;flex:1">
+        <div id="pip3-circle" style="width:24px;height:24px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--muted);flex-shrink:0">3</div>
+        <span id="pip3-label" style="font-size:11px;font-weight:700;color:var(--muted)">Confirm</span>
+      </div>
+    </div>
+
+    <!-- STEP 1: WHERE -->
+    <div id="book-step-1" style="padding:16px;display:flex;flex-direction:column;gap:14px">
+      <div>
+        <div id="cust-greeting" style="font-size:22px;font-weight:800;color:var(--text)">Hey, there 👋</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:2px">Where are you headed?</div>
+      </div>
+      <div>
+        <div class="sec" style="margin-bottom:8px">Saved places</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button onclick="fillAddress('pickup','123 Main St')" style="background:var(--surface2);border:1.5px solid rgba(79,158,255,.3);border-radius:12px;padding:12px;cursor:pointer;text-align:left">
+            <div style="font-size:20px;margin-bottom:4px">🏠</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">Home</div>
+            <div style="font-size:11px;color:var(--muted)">123 Main St</div>
+          </button>
+          <button onclick="fillAddress('pickup','456 Office Blvd')" style="background:var(--surface2);border:1.5px solid rgba(79,158,255,.3);border-radius:12px;padding:12px;cursor:pointer;text-align:left">
+            <div style="font-size:20px;margin-bottom:4px">💼</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">Work</div>
+            <div style="font-size:11px;color:var(--muted)">456 Office Blvd</div>
+          </button>
+          <button onclick="fillAddress('dropoff','Airport Terminal 2')" style="background:var(--surface2);border:1.5px solid rgba(79,158,255,.3);border-radius:12px;padding:12px;cursor:pointer;text-align:left">
+            <div style="font-size:20px;margin-bottom:4px">✈️</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">Airport</div>
+            <div style="font-size:11px;color:var(--muted)">Terminal 2</div>
+          </button>
+          <button onclick="fillAddress('dropoff','Downtown Mall')" style="background:var(--surface2);border:1.5px solid rgba(79,158,255,.3);border-radius:12px;padding:12px;cursor:pointer;text-align:left">
+            <div style="font-size:20px;margin-bottom:4px">🛍️</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">Mall</div>
+            <div style="font-size:11px;color:var(--muted)">Downtown Mall</div>
+          </button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Pickup</label>
+          <input id="book-pickup" placeholder="Your pickup location" autocomplete="off" />
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Drop-off</label>
+          <input id="book-dropoff" placeholder="Where to?" autocomplete="off" />
+        </div>
+      </div>
+      <div class="card" style="padding:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:700;font-size:13px">Schedule for later</div>
+            <div style="font-size:11px;color:var(--muted)">Book a ride in advance</div>
+          </div>
+          <div id="schedule-toggle" onclick="toggleSchedule()" style="width:40px;height:22px;border-radius:11px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;position:relative;transition:background .2s">
+            <div id="schedule-knob" style="width:16px;height:16px;border-radius:50%;background:var(--muted);position:absolute;top:2px;left:2px;transition:left .2s,background .2s"></div>
+          </div>
+        </div>
+        <div id="schedule-picker" style="display:none;margin-top:12px;flex-direction:column;gap:8px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Date</label>
+              <input type="date" id="schedule-date" />
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Time</label>
+              <input type="time" id="schedule-time" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="step1-error" class="error-box"></div>
+      <button class="btn" style="width:100%;background:var(--blue);color:#fff;padding:14px;font-size:15px" onclick="goStep(2)">Continue →</button>
+    </div>
+
+    <!-- STEP 2: RIDE TYPE -->
+    <div id="book-step-2" style="padding:16px;display:none;flex-direction:column;gap:14px">
+      <div>
+        <div style="font-size:18px;font-weight:800">Choose your ride</div>
+        <div id="step2-route" style="font-size:12px;color:var(--muted);margin-top:3px"></div>
+      </div>
+      <div style="background:rgba(79,158,255,.08);border:1px solid rgba(79,158,255,.25);border-radius:10px;padding:12px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Estimated fare</div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div id="fare-range" style="font-size:22px;font-weight:800;color:var(--blue)">$8 – $12</div>
+          <div id="fare-dist" style="font-size:12px;color:var(--muted);text-align:right">~2.4 mi • ~6 min</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="card" id="ride-standard" style="cursor:pointer;border-color:rgba(79,158,255,.5)" onclick="selectRide('standard',8,4)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:26px">🚕</span>
+              <div><div style="font-weight:700">Standard</div><div style="font-size:11px;color:var(--muted)">Up to 4 passengers • ~4 min</div></div>
+            </div>
+            <div style="font-size:20px;font-weight:800;color:var(--blue)">$8</div>
+          </div>
+        </div>
+        <div class="card" id="ride-comfort" style="cursor:pointer" onclick="selectRide('comfort',13,3)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:26px">🚙</span>
+              <div><div style="font-weight:700">Comfort</div><div style="font-size:11px;color:var(--muted)">Premium sedan • ~3 min</div></div>
+            </div>
+            <div style="font-size:20px;font-weight:800;color:var(--blue)">$13</div>
+          </div>
+        </div>
+        <div class="card" id="ride-xl" style="cursor:pointer" onclick="selectRide('xl',18,6)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:26px">🚐</span>
+              <div><div style="font-weight:700">XL</div><div style="font-size:11px;color:var(--muted)">Up to 6 passengers • ~6 min</div></div>
+            </div>
+            <div style="font-size:20px;font-weight:800;color:var(--blue)">$18</div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="padding:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-weight:700;font-size:13px">Passengers</div><div style="font-size:11px;color:var(--muted)">How many riding?</div></div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <button class="btn btn-outline" style="width:32px;height:32px;padding:0;font-size:20px;border-radius:50%;line-height:1" onclick="changePax(-1)">−</button>
+            <span id="pax-count" style="font-size:18px;font-weight:800;min-width:18px;text-align:center">1</span>
+            <button class="btn btn-outline" style="width:32px;height:32px;padding:0;font-size:20px;border-radius:50%;line-height:1" onclick="changePax(1)">+</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" style="flex:1;padding:13px" onclick="goStep(1)">← Back</button>
+        <button class="btn" style="flex:2;background:var(--blue);color:#fff;padding:13px;font-size:15px" onclick="goStep(3)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: CONFIRM -->
+    <div id="book-step-3" style="padding:16px;display:none;flex-direction:column;gap:14px">
+      <div style="font-size:18px;font-weight:800">Confirm your ride</div>
+      <div class="card" style="border-color:rgba(34,211,122,.3);display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:var(--muted)">Route</span><span id="confirm-route" style="font-size:13px;font-weight:600;text-align:right;max-width:200px"></span></div>
+        <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:var(--muted)">Ride</span><span id="confirm-ride" style="font-size:13px;font-weight:600"></span></div>
+        <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:var(--muted)">Passengers</span><span id="confirm-pax" style="font-size:13px;font-weight:600"></span></div>
+        <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:var(--muted)">ETA</span><span id="confirm-eta" style="font-size:13px;font-weight:600"></span></div>
+        <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:14px;font-weight:700">Total</span>
+          <span id="confirm-price" style="font-size:24px;font-weight:800;color:var(--green)"></span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Payment</label>
+        <div style="display:flex;gap:8px">
+          <button id="pay-cash" class="btn btn-yellow btn-sm" style="flex:1" onclick="selectPay('cash')">💵 Cash</button>
+          <button id="pay-card" class="btn btn-outline btn-sm" style="flex:1" onclick="selectPay('card')">💳 Card</button>
+          <button id="pay-account" class="btn btn-outline btn-sm" style="flex:1" onclick="selectPay('account')">👤 Account</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input id="promo-input" placeholder="Promo code (try TAXI10)" style="flex:1" autocomplete="off" autocapitalize="characters" />
+        <button class="btn btn-outline btn-sm" style="white-space:nowrap" onclick="applyPromo()">Apply</button>
+      </div>
+      <div id="promo-msg" style="display:none;font-size:12px;font-weight:600;margin-top:-8px"></div>
+      <div>
+        <button class="btn btn-outline btn-sm" style="width:100%;font-size:12px" onclick="toggleNoteField()">+ Add note to driver</button>
+        <div id="note-field" style="display:none;margin-top:8px">
+          <textarea id="book-notes" placeholder="e.g. Please call when outside, I have luggage..." style="height:65px;resize:none;width:100%"></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" style="flex:1;padding:13px" onclick="goStep(2)">← Back</button>
+        <button class="btn" style="flex:2;background:var(--green);color:var(--bg);padding:13px;font-size:15px;font-weight:800" onclick="bookRide()">Book Ride</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRACK TAB -->
+  <div class="scroll" id="ctab-track" style="display:none">
+    <div class="map-box">
+      <div class="map-label">Driver en route</div>
+      <div class="dot" style="background:var(--blue);top:65%;left:50%"></div>
+      <div class="dot" style="background:var(--yellow);top:35%;left:55%;animation:moveDot 3s infinite alternate"></div>
+    </div>
+    <div style="text-align:center;padding:8px 0">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Estimated arrival</div>
+      <div style="font-size:48px;font-weight:800;color:var(--blue)">4 <span style="font-size:20px;color:var(--muted)">min</span></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div class="avatar" style="background:rgba(245,197,24,.2);color:var(--yellow)">MA</div>
+        <div style="flex:1">
+          <div style="font-weight:700">Miguel A.</div>
+          <div style="font-size:12px;color:var(--muted)">Toyota Camry • ABC-1234</div>
+        </div>
+        <div style="display:flex;gap:2px">⭐⭐⭐⭐⭐</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div id="step-1" style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;background:rgba(34,211,122,.1);border:1px solid rgba(34,211,122,.3)">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 1s infinite"></div>
+          <span style="font-size:13px;font-weight:600;color:var(--green)">Ride confirmed</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;opacity:.4">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--muted)"></div>
+          <span style="font-size:13px;color:var(--muted)">Driver en route</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;opacity:.4">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--muted)"></div>
+          <span style="font-size:13px;color:var(--muted)">In progress</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;opacity:.4">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--muted)"></div>
+          <span style="font-size:13px;color:var(--muted)">Arrived</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY TAB -->
+  <div class="scroll" id="ctab-history" style="display:none">
+    <div class="sec">Past rides</div>
+    <div class="trip-row">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--muted)">Today, 9:42 AM</span>
+        <span style="color:var(--green);font-weight:700">$14.50</span>
+      </div>
+      <div style="font-size:13px;font-weight:600">Main St → Airport T2</div>
+      <div style="font-size:12px;color:var(--muted)">Driver: Miguel A. • ⭐⭐⭐⭐⭐</div>
+    </div>
+    <div class="trip-row">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--muted)">Yesterday, 6:15 PM</span>
+        <span style="color:var(--green);font-weight:700">$8.00</span>
+      </div>
+      <div style="font-size:13px;font-weight:600">Home → Downtown Mall</div>
+      <div style="font-size:12px;color:var(--muted)">Driver: Marcos T. • ⭐⭐⭐⭐</div>
+    </div>
+    <div class="trip-row">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--muted)">Apr 28, 11:00 AM</span>
+        <span style="color:var(--green);font-weight:700">$18.00</span>
+      </div>
+      <div style="font-size:13px;font-weight:600">Airport → University Ave</div>
+      <div style="font-size:12px;color:var(--muted)">Driver: Rita S. • ⭐⭐⭐⭐⭐</div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="cTab('book',this)"><span class="tab-icon">🚕</span>Book</button>
+    <button class="tab-btn" onclick="cTab('track',this)"><span class="tab-icon">📍</span>Track</button>
+    <button class="tab-btn" onclick="cTab('history',this)"><span class="tab-icon">🕐</span>History</button>
+  </div>
+</div>
+
+<!-- DRIVER APP -->
+<div class="screen" id="screen-driver">
+  <div class="header">
+    <div>
+      <div class="header-title">CabLink</div>
+      <div class="header-sub" id="d-name-hdr">Driver</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="d-duty-badge" class="badge badge-red">OFF DUTY</span>
+      <button onclick="show('driver-settings')" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px">⚙️</button>
+      <button onclick="doLogout()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px;font-family:'Syne',sans-serif;font-weight:600">Out</button>
+    </div>
+  </div>
+
+  <!-- CLOCK TAB -->
+  <div class="scroll active" id="dtab-clock">
+    <div class="card" style="text-align:center;gap:6px;display:flex;flex-direction:column;align-items:center">
+      <div class="clock-display" id="live-clock">00:00:00</div>
+      <div class="date-display" id="live-date"></div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Shift time</div>
+      <div class="shift-display" id="shift-timer">00:00:00</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="gps-badge" class="badge badge-red">GPS OFF</span>
+      <button class="btn btn-green" id="clock-btn" style="flex:1" onclick="toggleClock()">Clock In</button>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-val" id="d-trips">0</div><div class="stat-lbl">Trips</div></div>
+      <div class="stat-box"><div class="stat-val" id="d-earn">$0</div><div class="stat-lbl">Earned</div></div>
+      <div class="stat-box"><div class="stat-val" id="d-miles">0</div><div class="stat-lbl">Miles</div></div>
+    </div>
+    <div class="card">
+      <div class="sec">Round Robin Queue</div>
+      <div id="rr-list"></div>
+    </div>
+  </div>
+
+  <!-- MAP TAB -->
+  <div class="scroll" id="dtab-map" style="display:none;padding:0;gap:0;position:relative">
+    <!-- SEARCH BAR -->
+    <div style="padding:12px 12px 0;background:var(--surface);position:relative;z-index:10">
+      <div style="position:relative">
+        <input id="driver-search-input" placeholder="🔍 Search destination..." autocomplete="off"
+          style="width:100%;padding:11px 40px 11px 14px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:14px;font-family:'Syne',sans-serif" />
+        <button onclick="clearDriverSearch()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer">×</button>
+      </div>
+      <!-- AUTOCOMPLETE DROPDOWN -->
+      <div id="driver-autocomplete-list" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-top:4px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.3)"></div>
+    </div>
+    <!-- SELECTED DESTINATION CARD -->
+    <div id="driver-dest-card" style="display:none;margin:8px 12px 0;background:rgba(34,211,122,.08);border:1px solid rgba(34,211,122,.3);border-radius:10px;padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">Destination set</div>
+          <div id="driver-dest-name" style="font-size:13px;font-weight:700;color:var(--green)"></div>
+          <div id="driver-dest-addr" style="font-size:11px;color:var(--muted);margin-top:1px"></div>
+        </div>
+        <a id="driver-waze-btn" href="#" target="_blank" style="text-decoration:none">
+          <button class="btn btn-outline btn-sm">Waze</button>
+        </a>
+      </div>
+    </div>
+    <!-- MAP -->
+    <div id="driver-google-map" style="width:100%;height:380px;background:var(--surface2);margin-top:8px"></div>
+    <!-- GPS STATUS -->
+    <div style="padding:10px 12px;display:flex;align-items:center;gap:8px;background:var(--surface);border-top:1px solid var(--border)">
+      <div class="conn-dot" id="driver-map-dot"></div>
+      <span id="gps-coords" style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">Waiting for GPS...</span>
+    </div>
+  </div>
+
+  <!-- RADIO TAB -->
+  <div class="scroll" id="dtab-radio" style="display:none;align-items:center">
+    <div style="width:100%">
+      <div class="sec">Channel</div>
+      <select id="radio-channel" style="margin-top:6px" onchange="switchChannel()">
+        <option value="dispatch">General Dispatch (4 listening)</option>
+        <option value="zone-a">Zone A (2 listening)</option>
+        <option value="priority">Priority (1 listening)</option>
+      </select>
+    </div>
+    <div style="width:100%;display:flex;align-items:center;gap:8px;padding:4px 0">
+      <div class="conn-dot" id="agora-dot"></div>
+      <span id="agora-status" style="font-size:12px;color:var(--muted)">Not connected</span>
+    </div>
+    <div id="ptt-status" style="font-size:12px;color:var(--muted);text-align:center">Ready to transmit</div>
+    <div class="ptt-wrap">
+      <div class="ptt" id="ptt-btn"
+        onmousedown="startPTT()" onmouseup="stopPTT()" onmouseleave="stopPTT()"
+        ontouchstart="startPTT(event)" ontouchend="stopPTT()">
+        <span class="ptt-mic">🎙️</span>
+        <span class="ptt-text">HOLD TO TALK</span>
+      </div>
+    </div>
+    <div style="width:100%">
+      <div class="sec">Recent transmissions</div>
+      <div id="radio-log" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+
+  <!-- TRIPS TAB -->
+  <div class="scroll" id="dtab-trips" style="display:none">
+    <div class="sec">Active trip</div>
+    <div class="trip-row active">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace">#TL-0042</span>
+        <span class="badge badge-green">IN PROGRESS</span>
+      </div>
+      <div style="font-size:13px;font-weight:600">📍 123 Main St → Airport T2</div>
+      <div style="display:flex;gap:12px;font-size:12px;color:var(--muted)">
+        <span>ETA: 8 min</span><span>3.2 mi</span><span style="color:var(--green);font-weight:700">$14.50</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <a href="https://waze.com/ul?q=Airport+Terminal+2&navigate=yes" style="text-decoration:none;flex:2">
+          <button class="btn btn-outline btn-sm" style="width:100%">Open in Waze</button>
+        </a>
+        <button class="btn btn-green btn-sm" style="flex:1" onclick="completeTrip()">Done</button>
+        <button class="btn btn-red btn-sm" style="flex:1" onclick="showConfirm('Cancel this trip?','The passenger will be notified.',cancelTrip)">Cancel</button>
+      </div>
+    </div>
+    <div class="sec">Queued trips</div>
+    <div class="trip-row">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace">#TL-0043</span>
+        <span class="badge badge-yellow">QUEUED</span>
+      </div>
+      <div style="font-size:13px;font-weight:600">📍 Downtown Hotel → Stadium</div>
+      <div style="font-size:12px;color:var(--muted)">2.1 mi • <span style="color:var(--green);font-weight:700">$11.00</span></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-green btn-sm" style="flex:1">Accept</button>
+        <button class="btn btn-red btn-sm" style="flex:1">Decline</button>
+        <a href="https://waze.com/ul?q=Stadium&navigate=yes" style="text-decoration:none;flex:1">
+          <button class="btn btn-outline btn-sm" style="width:100%">Waze</button>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- EARNINGS TAB -->
+  <div class="scroll" id="dtab-earnings" style="display:none">
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-yellow btn-sm" style="flex:1">Today</button>
+      <button class="btn btn-outline btn-sm" style="flex:1">Week</button>
+      <button class="btn btn-outline btn-sm" style="flex:1">Month</button>
+    </div>
+    <div style="text-align:center;padding:8px 0">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total earnings</div>
+      <div style="font-size:40px;font-weight:800;color:var(--yellow);font-family:'DM Mono',monospace">$142.50</div>
+    </div>
+    <div class="stats-grid-2">
+      <div class="stat-box"><div class="stat-val" style="font-size:16px">$14.25</div><div class="stat-lbl">Avg/trip</div></div>
+      <div class="stat-box"><div class="stat-val" style="font-size:16px">47</div><div class="stat-lbl">Miles</div></div>
+      <div class="stat-box"><div class="stat-val" style="font-size:16px">6h 20m</div><div class="stat-lbl">Shift</div></div>
+      <div class="stat-box"><div class="stat-val" style="font-size:16px">$22.50</div><div class="stat-lbl">Per hour</div></div>
+    </div>
+    <div class="sec">Trip history</div>
+    <div class="trip-row">
+      <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace">#TL-0041</span><span style="color:var(--green);font-weight:700">$14.50</span></div>
+      <div style="font-size:13px">Main St → Airport • 3.2 mi • 9:42 AM</div>
+    </div>
+    <div class="trip-row">
+      <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace">#TL-0040</span><span style="color:var(--green);font-weight:700">$11.00</span></div>
+      <div style="font-size:13px">Hotel → Stadium • 2.1 mi • 8:15 AM</div>
+    </div>
+    <div class="trip-row">
+      <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace">#TL-0039</span><span style="color:var(--green);font-weight:700">$18.00</span></div>
+      <div style="font-size:13px">Airport → Downtown • 4.1 mi • 7:05 AM</div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="dTab('clock',this)"><span class="tab-icon">🕐</span>Clock</button>
+    <button class="tab-btn" onclick="dTab('map',this)"><span class="tab-icon">🗺️</span>Map</button>
+    <button class="tab-btn" onclick="dTab('radio',this)"><span class="tab-icon">📻</span>Radio</button>
+    <button class="tab-btn" onclick="dTab('trips',this)"><span class="tab-icon">📋</span>Trips</button>
+    <button class="tab-btn" onclick="dTab('earnings',this)"><span class="tab-icon">💰</span>Earn</button>
+  </div>
+</div>
+
+<!-- ADMIN APP -->
+<div class="screen" id="screen-admin">
+  <div class="header">
+    <div>
+      <div class="header-title" style="color:var(--purple)">CabLink Dispatch</div>
+      <div class="header-sub">Admin panel</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="badge badge-purple">ADMIN</span>
+      <button onclick="doLogout()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px;font-family:'Syne',sans-serif;font-weight:600">Out</button>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="scroll active" id="atab-overview">
+    <div class="stats-grid-2">
+      <div class="stat-box"><div class="stat-val" style="color:var(--green)" id="admin-stat-duty">0</div><div class="stat-lbl">On duty</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:var(--blue)" id="admin-stat-trips">0</div><div class="stat-lbl">Active trips</div></div>
+      <div class="stat-box"><div class="stat-val" id="admin-stat-earn">$0</div><div class="stat-lbl">Fleet earnings</div></div>
+      <div class="stat-box"><div class="stat-val" id="admin-stat-total">0</div><div class="stat-lbl">Total trips</div></div>
+    </div>
+    <div id="admin-google-map" style="width:100%;height:300px;border-radius:12px;overflow:hidden;border:1px solid var(--border)"></div>
+    <div class="sec">Clock-in log</div>
+    <div class="card" id="admin-clockin-log">
+      <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Waiting for drivers to clock in...</div>
+    </div>
+  </div>
+
+  <!-- FLEET -->
+  <div class="scroll" id="atab-fleet" style="display:none">
+    <div id="fleet-list"></div>
+    <button class="btn btn-yellow" style="width:100%;margin-top:4px" onclick="document.getElementById('add-modal').classList.add('open')">+ Add Driver</button>
+  </div>
+
+  <!-- TRIPS -->
+  <div class="scroll" id="atab-trips" style="display:none">
+    <div class="sec">Open trips</div>
+    <div id="admin-trips-list">
+      <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No active trips yet</div>
+    </div>
+  </div>
+
+  <!-- BROADCAST -->
+  <div class="scroll" id="atab-broadcast" style="display:none">
+
+    <!-- ADMIN PTT -->
+    <div class="sec">Dispatch Radio — General Channel</div>
+    <div class="card" style="align-items:center;display:flex;flex-direction:column;gap:10px">
+      <div style="width:100%;display:flex;align-items:center;gap:8px">
+        <div class="conn-dot" id="admin-agora-dot"></div>
+        <span id="admin-agora-status" style="font-size:12px;color:var(--muted)">Not connected</span>
+      </div>
+      <div id="admin-ptt-status" style="font-size:12px;color:var(--muted);text-align:center">Ready to transmit</div>
+      <div class="ptt-wrap" style="padding:10px 0">
+        <div class="ptt" id="admin-ptt-btn"
+          onmousedown="adminStartPTT()" onmouseup="adminStopPTT()" onmouseleave="adminStopPTT()"
+          ontouchstart="adminStartPTT(event)" ontouchend="adminStopPTT()">
+          <span class="ptt-mic">🎙️</span>
+          <span class="ptt-text">HOLD TO TALK</span>
+        </div>
+      </div>
+      <div style="width:100%">
+        <div class="sec">Live transmissions</div>
+        <div id="admin-radio-log" style="display:flex;flex-direction:column;gap:8px;margin-top:6px"></div>
+      </div>
+    </div>
+
+    <!-- TEXT BROADCAST -->
+    <div class="sec" style="margin-top:4px">Send text message</div>
+    <select id="bcast-target">
+      <option>All Drivers</option>
+      <option>Miguel A.</option>
+      <option>Marcos T.</option>
+      <option>Rita S.</option>
+      <option>Jorge W.</option>
+    </select>
+    <textarea id="bcast-msg" placeholder="Type message to drivers..." style="height:80px;resize:none"></textarea>
+    <button class="btn btn-yellow" style="width:100%" onclick="sendBroadcast()">Send Broadcast</button>
+    <div class="sec">Message log</div>
+    <div id="bcast-log" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="aTab('overview',this)"><span class="tab-icon">📊</span>Overview</button>
+    <button class="tab-btn" onclick="aTab('fleet',this)"><span class="tab-icon">🚗</span>Fleet</button>
+    <button class="tab-btn" onclick="aTab('trips',this)"><span class="tab-icon">📋</span>Trips</button>
+    <button class="tab-btn" onclick="aTab('broadcast',this)"><span class="tab-icon">📢</span>Broadcast</button>
+  </div>
+</div>
+
+<!-- DRIVER SETTINGS SCREEN -->
+<div class="screen" id="screen-driver-settings">
+  <div class="header">
+    <button onclick="show('driver')" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">←</button>
+    <div class="header-title" style="flex:1;margin-left:8px">Settings</div>
+  </div>
+  <div class="scroll">
+    <!-- PROFILE -->
+    <div class="sec">Profile</div>
+    <div class="card" style="display:flex;align-items:center;gap:14px">
+      <div class="avatar" id="settings-avatar" style="width:52px;height:52px;font-size:18px;background:rgba(245,197,24,.2);color:var(--yellow)">MA</div>
+      <div>
+        <div id="settings-name" style="font-weight:700;font-size:16px">Miguel A.</div>
+        <div id="settings-id" style="font-size:12px;color:var(--muted)">Driver ID: C1</div>
+        <div style="font-size:12px;color:var(--muted)">⭐ 4.9 rating</div>
+      </div>
+    </div>
+
+    <!-- VEHICLE -->
+    <div class="sec">Vehicle info</div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px">
+      <input id="veh-make" placeholder="Make & Model (e.g. Toyota Camry)" autocomplete="off" />
+      <input id="veh-plate" placeholder="License plate (e.g. ABC-1234)" autocomplete="off" autocapitalize="characters" />
+      <input id="veh-color" placeholder="Color (e.g. White)" autocomplete="off" />
+      <button class="btn btn-outline btn-sm" style="width:100%" onclick="saveVehicle()">Save Vehicle Info</button>
+    </div>
+
+    <!-- PREFERENCES -->
+    <div class="sec">Preferences</div>
+    <div class="card" style="display:flex;flex-direction:column;gap:0">
+      <div class="driver-row" style="padding:12px 0">
+        <div style="flex:1"><div style="font-size:13px;font-weight:600">Language</div><div style="font-size:11px;color:var(--muted)">App display language</div></div>
+        <select id="lang-select" style="width:auto;padding:6px 10px;font-size:12px" onchange="setLang(this.value)">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+      </div>
+      <div class="driver-row" style="padding:12px 0">
+        <div style="flex:1"><div style="font-size:13px;font-weight:600">Trip alerts</div><div style="font-size:11px;color:var(--muted)">Sound when new trip arrives</div></div>
+        <div id="alert-toggle" onclick="toggleAlerts()" style="width:40px;height:22px;border-radius:11px;background:rgba(34,211,122,.3);border:1px solid var(--border);cursor:pointer;position:relative">
+          <div id="alert-knob" style="width:16px;height:16px;border-radius:50%;background:var(--green);position:absolute;top:2px;left:22px;transition:left .2s"></div>
+        </div>
+      </div>
+      <div class="driver-row" style="padding:12px 0;border:none">
+        <div style="flex:1"><div style="font-size:13px;font-weight:600">Theme</div><div style="font-size:11px;color:var(--muted)">Dark / Light mode</div></div>
+        <div id="theme-toggle" onclick="toggleTheme()" style="width:40px;height:22px;border-radius:11px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;position:relative">
+          <div id="theme-knob" style="width:16px;height:16px;border-radius:50%;background:var(--muted);position:absolute;top:2px;left:2px;transition:left .2s"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECURITY -->
+    <div class="sec">Security</div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px">
+      <input type="password" id="pw-current" placeholder="Current password" autocomplete="off" />
+      <input type="password" id="pw-new" placeholder="New password" autocomplete="off" />
+      <input type="password" id="pw-confirm" placeholder="Confirm new password" autocomplete="off" />
+      <div id="pw-msg" style="display:none;font-size:12px;font-weight:600"></div>
+      <button class="btn btn-outline btn-sm" style="width:100%" onclick="changePassword()">Change Password</button>
+    </div>
+
+    <button class="btn btn-red" style="width:100%;margin-top:4px" onclick="doLogout()">Sign Out</button>
+  </div>
+</div>
+
+<!-- TRIP RECEIPT SCREEN -->
+<div class="screen" id="screen-receipt">
+  <div class="header">
+    <button onclick="show('driver')" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">←</button>
+    <div class="header-title" style="flex:1;margin-left:8px">Trip Receipt</div>
+  </div>
+  <div class="scroll" style="align-items:center">
+    <div style="text-align:center;padding:16px 0">
+      <div style="font-size:48px;margin-bottom:8px">✅</div>
+      <div style="font-size:20px;font-weight:800;color:var(--green)">Trip Complete!</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px" id="receipt-id">#TL-0042</div>
+    </div>
+    <div class="card" style="width:100%;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted);font-size:13px">Route</span><span id="receipt-route" style="font-size:13px;font-weight:600;text-align:right;max-width:200px">Main St → Airport</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted);font-size:13px">Distance</span><span id="receipt-miles" style="font-size:13px;font-weight:600">3.2 mi</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted);font-size:13px">Duration</span><span id="receipt-duration" style="font-size:13px;font-weight:600">18 min</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted);font-size:13px">Payment</span><span id="receipt-payment" style="font-size:13px;font-weight:600">Cash</span></div>
+      <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700">Total earned</span>
+        <span id="receipt-total" style="font-size:26px;font-weight:800;color:var(--green)">$14.50</span>
+      </div>
+    </div>
+
+    <!-- RATING REQUEST -->
+    <div class="card" style="width:100%;text-align:center">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">Rate your passenger</div>
+      <div style="display:flex;justify-content:center;gap:8px" id="passenger-stars">
+        <span style="font-size:32px;cursor:pointer" onclick="ratePassenger(1)">⭐</span>
+        <span style="font-size:32px;cursor:pointer" onclick="ratePassenger(2)">⭐</span>
+        <span style="font-size:32px;cursor:pointer" onclick="ratePassenger(3)">⭐</span>
+        <span style="font-size:32px;cursor:pointer" onclick="ratePassenger(4)">⭐</span>
+        <span style="font-size:32px;cursor:pointer" onclick="ratePassenger(5)">⭐</span>
+      </div>
+      <div id="rating-done" style="display:none;color:var(--green);font-size:13px;font-weight:600;margin-top:8px">Thanks for rating!</div>
+    </div>
+    <button class="btn btn-yellow" style="width:100%" onclick="show('driver')">Back to Dashboard</button>
+  </div>
+</div>
+
+<!-- TRIP ALERT MODAL -->
+<div class="modal-wrap" id="trip-alert-modal">
+  <div class="modal" style="border:1px solid rgba(245,197,24,.4)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+      <span style="font-size:24px">🚨</span>
+      <div style="font-weight:800;font-size:16px;color:var(--yellow)">New Trip!</div>
+    </div>
+    <div id="alert-trip-info" style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-red btn-sm" style="flex:1" onclick="declineAlertTrip()">Decline</button>
+      <button class="btn btn-green btn-sm" style="flex:2" onclick="acceptAlertTrip()">Accept Ride</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div class="modal-wrap" id="confirm-modal">
+  <div class="modal">
+    <div id="confirm-title" style="font-weight:800;font-size:16px;margin-bottom:6px">Are you sure?</div>
+    <div id="confirm-msg" style="font-size:13px;color:var(--muted);margin-bottom:16px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline btn-sm" style="flex:1" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-red btn-sm" style="flex:1" id="confirm-yes-btn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-wrap" id="add-modal">
+  <div class="modal">
+    <div style="font-weight:800;font-size:16px;color:var(--yellow)">Add New Driver</div>
+    <input id="new-name" placeholder="Full name" />
+    <input id="new-id" placeholder="Driver ID (e.g. C5)" autocapitalize="none" />
+    <input id="new-pass" type="password" placeholder="Password" />
+    <button class="btn btn-yellow" onclick="addDriver()">Add Driver</button>
+    <button class="btn btn-outline" onclick="document.getElementById('add-modal').classList.remove('open')">Cancel</button>
+  </div>
+</div>
+
+</div>
+
+<script>
+// --- FIREBASE CONFIG ---
+const firebaseConfig = {
+  apiKey: "AIzaSyB4sljyYI0QVbjgR86Gi6Hf-zs5v1zeI3I",
+  authDomain: "taxi-latino-495002.firebaseapp.com",
+  projectId: "taxi-latino-495002",
+  storageBucket: "taxi-latino-495002.firebasestorage.app",
+  messagingSenderId: "606860306101",
+  appId: "1:606860306101:web:4a4c9e83e3887c02e540fc"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const AGORA_APP_ID = 'bdc0664850aa4d70b96b8ab954a333a1';
+const AGORA_CHANNEL = 'general';
+const AGORA_TOKEN = '007eJxTYNBSO7BG9ZBWB2Oc2s+O2MiV6kYMqivMb02+lB0SK/rlxmwFhqSUZAMzMxMLU4PERJMUc4MkS7Mki8QkS1OTRGNj40TD5gffMxsCGRn2NUswMTJAIIjPzpCempdalJjDwAAAJOsfjQ=='; // Expires May 2027
+const AGORA_TOKENS = {
+  'dispatch': AGORA_TOKEN,
+  'zone-a': AGORA_TOKEN,
+  'priority': AGORA_TOKEN
+};
+
+let drivers = {
+  C1:{name:'Miguel A.',pass:'1234'},
+  C2:{name:'Marcos T.',pass:'1234'},
+  C3:{name:'Rita S.',pass:'1234'},
+  C4:{name:'Jorge W.',pass:'1234'}
+};
+
+let currentRole = 'driver';
+let currentDriver = null;
+let clockedIn = false;
+let clockStart = null;
+let gpsWatcher = null;
+
+// Agora state
+let agoraClient = null;
+let localAudioTrack = null;
+let transmitting = false;
+let pttStartTime = null;
+let currentChannel = 'dispatch';
+let agoraJoined = false;
+
+// --- SCREEN NAVIGATION ---
+// --- SCREEN NAVIGATION ---
+function show(s) {
+  document.querySelectorAll('.screen').forEach(x => x.classList.remove('active'));
+  const el = document.getElementById('screen-' + s);
+  if (el) el.classList.add('active');
+  if (s === 'driver-settings') populateSettings();
+}
+
+// --- LOADING SCREEN ---
+function bootApp() {
+  show('loading');
+  const msgs = ['Starting CabLink...', 'Loading fleet data...', 'Ready!'];
+  let i = 0;
+  const el = document.getElementById('loading-msg');
+  const iv = setInterval(() => {
+    i++;
+    if (i < msgs.length) { el.textContent = msgs[i]; }
+    else { clearInterval(iv); show('role'); }
+  }, 700);
+}
+bootApp();
+
+// --- ROLE SELECT ---
+const roleDescs = {
+  customer: { color:'var(--blue)', bullets:['Book a ride in seconds','Track your driver live on the map','View ride history & receipts'] },
+  driver:   { color:'var(--yellow)', bullets:['Clock in/out with automatic GPS tracking','Push-to-talk radio with dispatch & other drivers','Track your earnings, trips & miles in real time'] },
+  admin:    { color:'var(--purple)', bullets:["Live map showing every driver's location",'Add, suspend or manage drivers instantly','Broadcast messages to all drivers at once'] }
+};
+
+function selectRole(r) {
+  currentRole = r;
+  const badge = document.getElementById('login-badge');
+  const qs = document.getElementById('quick-section');
+  const gs = document.getElementById('guest-section');
+  const qb = document.getElementById('quick-btns');
+  const li = document.getElementById('login-id');
+  const lp = document.getElementById('login-pass');
+  const desc = document.getElementById('login-role-desc');
+
+  li.value = ''; lp.value = '';
+  document.getElementById('login-error').style.display = 'none';
+
+  const d = roleDescs[r];
+  desc.innerHTML = d.bullets.map(b =>
+    `<div style="font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:flex-start">
+      <span style="color:${d.color};font-weight:800;flex-shrink:0">•</span><span>${b}</span>
+    </div>`
+  ).join('');
+
+  if (r === 'driver') {
+    badge.textContent = 'Driver'; badge.className = 'badge badge-yellow';
+    li.placeholder = 'Driver ID (C1, C2...)';
+    qs.style.display = 'block'; gs.style.display = 'none';
+    qb.innerHTML = Object.entries(drivers).map(([id, dv]) =>
+      `<button class="btn btn-outline btn-sm" onclick="quickLogin('${id}','${dv.pass}')">${dv.name}</button>`
+    ).join('');
+  } else if (r === 'admin') {
+    badge.textContent = 'Admin'; badge.className = 'badge badge-purple';
+    li.placeholder = 'Username';
+    qs.style.display = 'none'; gs.style.display = 'none';
+  } else {
+    badge.textContent = 'Customer'; badge.className = 'badge badge-blue';
+    li.placeholder = 'Username';
+    qs.style.display = 'none'; gs.style.display = 'block';
+  }
+  show('login');
+}
+
+function doGuestLogin() {
+  const fullName = document.getElementById('guest-name').value.trim();
+  const preferred = document.getElementById('guest-preferred').value.trim();
+  const err = document.getElementById('guest-error');
+  if (!fullName) { err.textContent = 'Please enter your full name.'; err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  const displayName = preferred || fullName.split(' ')[0];
+  const initials = fullName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('cust-greeting').textContent = `Hey, ${displayName} 👋`;
+  document.getElementById('cust-header-name').textContent = displayName;
+  document.getElementById('cust-initials').textContent = initials;
+  show('customer');
+}
+
+
+function quickLogin(id, pass) {
+  document.getElementById('login-id').value = id;
+  document.getElementById('login-pass').value = pass;
+  doLogin();
+}
+
+function doLogin() {
+  const id = document.getElementById('login-id').value.trim();
+  const pass = document.getElementById('login-pass').value.trim();
+  const err = document.getElementById('login-error');
+  err.style.display = 'none';
+
+  if (currentRole === 'driver') {
+    if (!drivers[id]) { err.textContent = 'Driver ID not found.'; err.style.display = 'block'; return; }
+    if (drivers[id].pass !== pass) { err.textContent = 'Incorrect password.'; err.style.display = 'block'; return; }
+    currentDriver = id;
+    document.getElementById('d-name-hdr').textContent = drivers[id].name;
+    buildRR(); buildRadioLog();
+    show('driver');
+    initAgora();
+  } else if (currentRole === 'admin') {
+    if (id === 'admin' && pass === 'admin') {
+      show('admin');
+      setTimeout(() => { initAdminMap(); startAdminDataListener(); }, 500);
+    } else { err.textContent = 'Invalid credentials.'; err.style.display = 'block'; }
+  } else {
+    show('driver'); // customer placeholder
+  }
+}
+
+// --- BOOKING FEATURES ---
+let selectedRide = { type:'standard', base:8, eta:4 };
+let paxCount = 1;
+let scheduleOn = false;
+let selectedPay = 'cash';
+let promoApplied = false;
+let promoDiscount = 0;
+let currentBookStep = 1;
+
+function fillAddress(field, val) {
+  document.getElementById('book-' + field).value = val;
+}
+
+function goStep(n) {
+  if (n === 2) {
+    const pickup = document.getElementById('book-pickup').value.trim();
+    const dropoff = document.getElementById('book-dropoff').value.trim();
+    const err = document.getElementById('step1-error');
+    if (!pickup || !dropoff) {
+      err.textContent = 'Please enter both pickup and drop-off locations.';
+      err.style.display = 'block'; return;
+    }
+    err.style.display = 'none';
+    const dist = (Math.random() * 3 + 1).toFixed(1);
+    const mins = Math.round(dist * 2.5);
+    const lo = (selectedRide.base + parseFloat(dist) * 1.2).toFixed(2);
+    const hi = (parseFloat(lo) + 3).toFixed(2);
+    document.getElementById('fare-range').textContent = `$${lo} – $${hi}`;
+    document.getElementById('fare-dist').textContent = `~${dist} mi • ~${mins} min`;
+    document.getElementById('step2-route').textContent = `${pickup} → ${dropoff}`;
+  }
+  if (n === 3) {
+    const pickup = document.getElementById('book-pickup').value.trim();
+    const dropoff = document.getElementById('book-dropoff').value.trim();
+    const label = selectedRide.type.charAt(0).toUpperCase() + selectedRide.type.slice(1);
+    const price = promoApplied ? (selectedRide.base * (1 - promoDiscount)).toFixed(2) : selectedRide.base.toFixed(2);
+    document.getElementById('confirm-route').textContent = `${pickup} → ${dropoff}`;
+    document.getElementById('confirm-ride').textContent = label;
+    document.getElementById('confirm-pax').textContent = `${paxCount} passenger${paxCount > 1 ? 's' : ''}`;
+    document.getElementById('confirm-eta').textContent = `~${selectedRide.eta} min`;
+    document.getElementById('confirm-price').textContent = `$${price}`;
+  }
+  currentBookStep = n;
+  [1,2,3].forEach(i => {
+    document.getElementById(`book-step-${i}`).style.display = i === n ? 'flex' : 'none';
+    const circ = document.getElementById(`pip${i}-circle`);
+    const lbl = document.getElementById(`pip${i}-label`);
+    if (i < n) {
+      circ.style.background = 'var(--green)'; circ.style.border = 'none';
+      circ.innerHTML = '✓'; circ.style.color = '#fff';
+      lbl.style.color = 'var(--green)';
+    } else if (i === n) {
+      circ.style.background = 'var(--blue)'; circ.style.border = 'none';
+      circ.innerHTML = String(i); circ.style.color = '#fff';
+      lbl.style.color = 'var(--blue)';
+    } else {
+      circ.style.background = 'var(--surface2)';
+      circ.style.border = '1px solid var(--border)';
+      circ.innerHTML = String(i); circ.style.color = 'var(--muted)';
+      lbl.style.color = 'var(--muted)';
+    }
+  });
+}
+
+function selectRide(type, base, eta) {
+  selectedRide = { type, base, eta };
+  ['standard','comfort','xl'].forEach(t => {
+    document.getElementById('ride-' + t).style.borderColor = 'var(--border)';
+  });
+  document.getElementById('ride-' + type).style.borderColor = 'rgba(79,158,255,.6)';
+}
+
+function changePax(delta) {
+  paxCount = Math.max(1, Math.min(6, paxCount + delta));
+  document.getElementById('pax-count').textContent = paxCount;
+  if (paxCount > 4 && selectedRide.type === 'standard') selectRide('xl', 18, 6);
+}
+
+function toggleSchedule() {
+  scheduleOn = !scheduleOn;
+  const knob = document.getElementById('schedule-knob');
+  const tog = document.getElementById('schedule-toggle');
+  const picker = document.getElementById('schedule-picker');
+  tog.style.background = scheduleOn ? 'rgba(79,158,255,.4)' : 'var(--surface2)';
+  knob.style.left = scheduleOn ? '22px' : '2px';
+  knob.style.background = scheduleOn ? 'var(--blue)' : 'var(--muted)';
+  picker.style.display = scheduleOn ? 'flex' : 'none';
+  if (scheduleOn) {
+    const now = new Date(); now.setHours(now.getHours() + 1);
+    document.getElementById('schedule-date').valueAsDate = new Date();
+    document.getElementById('schedule-time').value = now.toTimeString().slice(0,5);
+  }
+}
+
+function selectPay(method) {
+  selectedPay = method;
+  ['cash','card','account'].forEach(m => {
+    const btn = document.getElementById('pay-' + m);
+    btn.className = m === method ? 'btn btn-yellow btn-sm' : 'btn btn-outline btn-sm';
+    btn.style.flex = '1';
+  });
+}
+
+function applyPromo() {
+  const code = document.getElementById('promo-input').value.trim().toUpperCase();
+  const msg = document.getElementById('promo-msg');
+  const validCodes = { 'TAXI10': .10, 'LATINO': .15, 'WELCOME': .20 };
+  if (!code) return;
+  if (validCodes[code]) {
+    promoApplied = true;
+    promoDiscount = validCodes[code];
+    const pct = Math.round(promoDiscount * 100);
+    const newPrice = (selectedRide.base * (1 - promoDiscount)).toFixed(2);
+    msg.textContent = `✓ "${code}" applied — ${pct}% off! New total: $${newPrice}`;
+    msg.style.color = 'var(--green)';
+    msg.style.display = 'block';
+    document.getElementById('confirm-price').textContent = `$${newPrice}`;
+  } else {
+    promoApplied = false; promoDiscount = 0;
+    msg.textContent = 'Invalid promo code. Try TAXI10, LATINO, or WELCOME.';
+    msg.style.color = 'var(--red)';
+    msg.style.display = 'block';
+  }
+}
+
+function toggleNoteField() {
+  const f = document.getElementById('note-field');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function bookRide() {
+  const tabs = document.querySelectorAll('#screen-customer .tab-btn');
+  tabs.forEach(x => x.classList.remove('active'));
+  tabs[1].classList.add('active');
+  cTab('track', tabs[1]);
+  goStep(1);
+  document.getElementById('book-pickup').value = '';
+  document.getElementById('book-dropoff').value = '';
+  promoApplied = false; promoDiscount = 0; paxCount = 1;
+  selectedRide = { type:'standard', base:8, eta:4 };
+}
+
+function cTab(name, el) {
+  document.querySelectorAll('#screen-customer .scroll').forEach(x => x.style.display = 'none');
+  document.querySelectorAll('#screen-customer .tab-btn').forEach(x => x.classList.remove('active'));
+  document.getElementById('ctab-' + name).style.display = 'flex';
+  el.classList.add('active');
+}
+
+
+// --- DRIVER TABS ---
+function dTab(name, el) {
+  document.querySelectorAll('#screen-driver .scroll').forEach(x => x.style.display = 'none');
+  document.querySelectorAll('#screen-driver .tab-btn').forEach(x => x.classList.remove('active'));
+  document.getElementById('dtab-' + name).style.display = 'flex';
+  el.classList.add('active');
+  if (name === 'map') setTimeout(initDriverMap, 100);
+}
+
+// --- ADMIN TABS ---
+function aTab(name, el) {
+  document.querySelectorAll('#screen-admin .scroll').forEach(x => x.style.display = 'none');
+  document.querySelectorAll('#screen-admin .tab-btn').forEach(x => x.classList.remove('active'));
+  document.getElementById('atab-' + name).style.display = 'flex';
+  el.classList.add('active');
+  if (name === 'overview') setTimeout(initAdminMap, 100);
+  if (name === 'broadcast') initAdminAgora();
+}
+
+// --- CLOCK ---
+function updateClock() {
+  const now = new Date();
+  document.getElementById('live-clock').textContent = now.toLocaleTimeString();
+  document.getElementById('live-date').textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  if (clockedIn && clockStart) {
+    const d = Math.floor((Date.now() - clockStart) / 1000);
+    const h = String(Math.floor(d / 3600)).padStart(2, '0');
+    const m = String(Math.floor((d % 3600) / 60)).padStart(2, '0');
+    const s = String(d % 60).padStart(2, '0');
+    document.getElementById('shift-timer').textContent = `${h}:${m}:${s}`;
+  }
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+function toggleClock() {
+  clockedIn = !clockedIn;
+  const btn = document.getElementById('clock-btn');
+  const dutyBadge = document.getElementById('d-duty-badge');
+  const gb = document.getElementById('gps-badge');
+  if (clockedIn) {
+    clockStart = Date.now();
+    btn.textContent = 'Clock Out'; btn.className = 'btn btn-red';
+    dutyBadge.textContent = 'ON DUTY'; dutyBadge.className = 'badge badge-green';
+    gb.textContent = 'GPS ON'; gb.className = 'badge badge-green';
+    startGPS();
+  } else {
+    stopGPS();
+    btn.textContent = 'Clock In'; btn.className = 'btn btn-green';
+    dutyBadge.textContent = 'OFF DUTY'; dutyBadge.className = 'badge badge-red';
+    gb.textContent = 'GPS OFF'; gb.className = 'badge badge-red';
+    document.getElementById('shift-timer').textContent = '00:00:00';
+    clockStart = null;
+  }
+}
+
+function startGPS() {
+  if (!navigator.geolocation) return;
+  const driverName = currentDriver ? drivers[currentDriver].name : 'Unknown';
+  gpsWatcher = navigator.geolocation.watchPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    document.getElementById('gps-coords').textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    document.getElementById('driver-map-dot').className = 'conn-dot connected';
+    // Update driver map marker
+    updateDriverMapPosition(lat, lng);
+    // Write to Firebase
+    try {
+      db.collection('drivers').doc(currentDriver).set({
+        name: driverName,
+        lat, lng,
+        status: 'on_duty',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    } catch(e) { console.error('Firebase GPS write error:', e); }
+  }, () => {
+    document.getElementById('gps-coords').textContent = 'GPS: permission denied';
+  }, { enableHighAccuracy: true, maximumAge: 5000 });
+}
+
+function stopGPS() {
+  if (gpsWatcher) navigator.geolocation.clearWatch(gpsWatcher);
+  if (currentDriver) {
+    try {
+      db.collection('drivers').doc(currentDriver).update({ status: 'off_duty' });
+    } catch(e) {}
+  }
+}
+
+// --- ROUND ROBIN ---
+function buildRR() {
+  const order = [
+    { name: drivers[currentDriver]?.name || 'You', status: 'Active', color: 'var(--green)' },
+    { name: 'Marcos T.', status: 'Next', color: 'var(--yellow)' },
+    { name: 'Jorge W.', status: 'Waiting', color: 'var(--muted)' },
+    { name: 'Rita S.', status: 'Waiting', color: 'var(--muted)' },
+  ];
+  document.getElementById('rr-list').innerHTML = order.map(r =>
+    `<div class="rr-row"><span style="font-size:13px;font-weight:600">${r.name}</span><span style="font-size:11px;font-weight:700;color:${r.color}">${r.status}</span></div>`
+  ).join('');
+}
+
+// --- RADIO LOG ---
+function buildRadioLog() {
+  const now = new Date();
+  const fmt = (d) => d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const msgs = [
+    { who: 'Dispatch', time: fmt(new Date(now - 120000)), dur: '4.2s', pct: 40 },
+    { who: 'Miguel A.', time: fmt(new Date(now - 300000)), dur: '7.8s', pct: 70 },
+    { who: 'Marcos T.', time: fmt(new Date(now - 720000)), dur: '2.9s', pct: 30 },
+  ];
+  document.getElementById('radio-log').innerHTML = msgs.map(m =>
+    `<div class="radio-msg">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:13px;font-weight:700">${m.who}</span>
+        <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${m.time}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:5px">${m.dur} transmission</div>
+      <div class="waveform"><div class="wave-fill" style="width:${m.pct}%"></div></div>
+    </div>`
+  ).join('');
+}
+
+// --- AGORA REAL PTT ---
+async function initAgora() {
+  if (!window.AgoraRTC) {
+    setAgoraStatus(false, 'Agora SDK not loaded');
+    return;
+  }
+  try {
+    AgoraRTC.setLogLevel(1);
+    agoraClient = AgoraRTC.createClient({ mode: 'rtc', codec: 'h264' });
+    agoraClient.on('user-published', async (user, mediaType) => {
+      await agoraClient.subscribe(user, mediaType);
+      if (mediaType === 'audio') {
+        user.audioTrack.play();
+        // Log incoming transmission
+        const log = document.getElementById('radio-log');
+        if (log) {
+          const timeStr = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+          const uid = user.uid;
+          // Match uid to driver — C1=1, C2=2, C3=3, C4=4
+          const driverEntry = Object.entries(drivers).find(([id]) => parseInt(id.replace('C','')) === uid);
+          const driverName = driverEntry ? driverEntry[1].name : `Driver ${uid}`;
+          log.insertAdjacentHTML('afterbegin',
+            `<div class="radio-msg" style="border:1px solid rgba(79,158,255,.3)">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                <span style="font-size:13px;font-weight:700;color:var(--blue)">${driverName}</span>
+                <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${timeStr}</span>
+              </div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:5px">Incoming transmission...</div>
+              <div class="waveform"><div class="wave-fill" style="width:60%;background:var(--blue);animation:pulse 0.5s infinite alternate"></div></div>
+            </div>`
+          );
+        }
+      }
+    });
+    agoraClient.on('user-unpublished', async (user, mediaType) => {
+      if (mediaType === 'audio') await agoraClient.unsubscribe(user, mediaType);
+    });
+    await joinChannel('dispatch');
+  } catch (e) {
+    setAgoraStatus(false, 'Connection failed');
+    console.error('Agora init error:', e);
+  }
+}
+
+async function joinChannel(channelName) {
+  if (!agoraClient) return;
+  try {
+    if (agoraJoined) {
+      await agoraClient.leave();
+      agoraJoined = false;
+    }
+    const uid = currentDriver ? parseInt(currentDriver.replace('C','')) : Math.floor(Math.random() * 10000);
+    setAgoraStatus(false, 'Connecting...');
+    await agoraClient.join(AGORA_APP_ID, AGORA_CHANNEL, AGORA_TOKEN, uid);
+    agoraJoined = true;
+    currentChannel = channelName;
+    setAgoraStatus(true, `Connected · General Dispatch`);
+  } catch (e) {
+    setAgoraStatus(false, 'Failed — check Agora console');
+    console.error('Join error:', e);
+  }
+}
+
+function setAgoraStatus(connected, msg) {
+  const dot = document.getElementById('agora-dot');
+  const st = document.getElementById('agora-status');
+  if (dot) { dot.className = 'conn-dot' + (connected ? ' connected' : ''); }
+  if (st) st.textContent = msg;
+}
+
+async function switchChannel() {
+  const ch = document.getElementById('radio-channel').value;
+  setAgoraStatus(false, 'Switching channel...');
+  await joinChannel(ch);
+}
+
+async function startPTT(e) {
+  if (e) e.preventDefault();
+  if (transmitting || !agoraJoined) {
+    if (!agoraJoined) document.getElementById('ptt-status').textContent = 'Not connected to channel';
+    return;
+  }
+  transmitting = true;
+  pttStartTime = Date.now();
+  const btn = document.getElementById('ptt-btn');
+  btn.classList.add('live');
+  document.getElementById('ptt-status').textContent = 'Transmitting...';
+  document.getElementById('ptt-status').style.color = 'var(--green)';
+  try {
+    // Get raw microphone audio with all processing disabled
+    const rawStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        googEchoCancellation: false,
+        googAutoGainControl: false,
+        googNoiseSuppression: false,
+        googHighpassFilter: false,
+        googTypingNoiseDetection: false,
+        sampleRate: 48000,
+        channelCount: 1,
+      }
+    });
+    localAudioTrack = await AgoraRTC.createCustomAudioTrack({
+      mediaStreamTrack: rawStream.getAudioTracks()[0],
+      encoderConfig: {
+        sampleRate: 48000,
+        stereo: false,
+        bitrate: 128,
+      }
+    });
+    await agoraClient.publish([localAudioTrack]);
+  } catch (err) {
+    document.getElementById('ptt-status').textContent = 'Mic access denied — check browser permissions';
+    document.getElementById('ptt-status').style.color = 'var(--red)';
+    btn.classList.remove('live');
+    transmitting = false;
+  }
+}
+
+async function stopPTT() {
+  if (!transmitting) return;
+  transmitting = false;
+  const btn = document.getElementById('ptt-btn');
+  btn.classList.remove('live');
+  document.getElementById('ptt-status').textContent = 'Ready to transmit';
+  document.getElementById('ptt-status').style.color = 'var(--muted)';
+  try {
+    if (localAudioTrack) {
+      await agoraClient.unpublish([localAudioTrack]);
+      localAudioTrack.close();
+      localAudioTrack = null;
+    }
+  } catch (err) { console.error('Stop PTT error:', err); }
+
+  const name = currentDriver ? drivers[currentDriver].name : 'You';
+  const log = document.getElementById('radio-log');
+  const durSec = pttStartTime ? ((Date.now() - pttStartTime) / 1000).toFixed(1) : '0.0';
+  const timeStr = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const pct = Math.min(Math.round((parseFloat(durSec) / 30) * 100) + 15, 95);
+  log.insertAdjacentHTML('afterbegin',
+    `<div class="radio-msg" style="border:1px solid rgba(34,211,122,.3)">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:13px;font-weight:700;color:var(--green)">${name}</span>
+        <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${timeStr}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:5px">${durSec}s transmission</div>
+      <div class="waveform"><div class="wave-fill" style="width:${pct}%;background:var(--green)"></div></div>
+    </div>`
+  );
+}
+
+// --- FLEET (ADMIN) ---
+// --- ADMIN LIVE DATA FROM FIREBASE ---
+let adminClockData = {};
+let adminTripData = [];
+let adminFleetListener = null;
+
+function startAdminDataListener() {
+  if (adminFleetListener) return;
+  adminFleetListener = db.collection('drivers').onSnapshot(snapshot => {
+    let onDutyCount = 0;
+    let activeTrips = 0;
+    let totalEarnings = 0;
+    let totalTrips = 0;
+    const clockLog = [];
+
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      const onDuty = d.status === 'on_duty';
+      if (onDuty) onDutyCount++;
+      if (d.destName && onDuty) activeTrips++;
+      if (d.tripsToday) totalTrips += d.tripsToday;
+      if (d.earningsToday) totalEarnings += d.earningsToday;
+      clockLog.push({ id: doc.id, ...d });
+      adminClockData[doc.id] = d;
+    });
+
+    // Update stat cards
+    const sd = document.getElementById('admin-stat-duty');
+    const st = document.getElementById('admin-stat-trips');
+    const se = document.getElementById('admin-stat-earn');
+    const stt = document.getElementById('admin-stat-total');
+    if (sd) sd.textContent = onDutyCount;
+    if (st) st.textContent = activeTrips;
+    if (se) se.textContent = `$${totalEarnings.toFixed(2)}`;
+    if (stt) stt.textContent = totalTrips;
+
+    // Update clock-in log
+    const logEl = document.getElementById('admin-clockin-log');
+    if (logEl) {
+      if (clockLog.length === 0) {
+        logEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No drivers clocked in yet</div>`;
+      } else {
+        const driverColors = { C1:'var(--yellow)', C2:'var(--blue)', C3:'var(--purple)', C4:'var(--green)' };
+        logEl.innerHTML = clockLog.map((d, i) => {
+          const onDuty = d.status === 'on_duty';
+          const initials = (d.name||d.id||'?').split(' ').map(w=>w[0]).join('').slice(0,2);
+          const color = driverColors[d.id] || 'var(--muted)';
+          const clockTime = d.clockedInAt ? new Date(d.clockedInAt.toDate()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '--';
+          const shiftMins = d.clockedInAt ? Math.floor((Date.now() - d.clockedInAt.toDate())/60000) : 0;
+          const shiftStr = shiftMins > 0 ? `${Math.floor(shiftMins/60)}h ${shiftMins%60}m` : '--';
+          const destLine = d.destName
+            ? `<div style="font-size:10px;color:var(--blue);margin-top:1px">→ ${d.destName} • ${d.durationText||''} • ${d.distanceText||''}${d.estFareLow ? ` • <span style="color:var(--green);font-weight:700">$${d.estFareLow}–$${d.estFareHigh}</span>` : ''}</div>`
+            : '';
+          return `<div class="driver-row" style="${i===clockLog.length-1?'border:none':''}">
+            <div class="avatar" style="background:${color}22;color:${color}">${initials}</div>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:600">${d.name||d.id}</div>
+              <div style="font-size:11px;color:var(--muted)">${onDuty ? `Clocked ${clockTime} • ${shiftStr} shift` : 'Off duty'}</div>
+              ${destLine}
+            </div>
+            <span class="badge ${onDuty?'badge-green':'badge-red'}">${onDuty?'On duty':'Off'}</span>
+          </div>`;
+        }).join('');
+      }
+    }
+
+    // Update trips list
+    updateAdminTrips(clockLog);
+
+    // Update fleet list
+    buildFleetFromFirebase(clockLog);
+  });
+}
+
+function updateAdminTrips(driverList) {
+  const el = document.getElementById('admin-trips-list');
+  if (!el) return;
+  const active = driverList.filter(d => d.status === 'on_duty' && d.destName);
+  if (active.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No active trips right now</div>`;
+    return;
+  }
+  const driverColors = { C1:'#f5c518', C2:'#4f9eff', C3:'#a78bfa', C4:'#22d37a' };
+  const now = new Date();
+  el.innerHTML = active.map(d => {
+    const color = driverColors[d.id] || '#ffffff';
+    const tripTime = now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    // Estimate price: base $5 + $2.50/mile approx from duration
+    const mins = d.durationText ? parseInt(d.durationText) : 10;
+    const estMiles = (mins * 0.4).toFixed(1);
+    const estPrice = (5 + parseFloat(estMiles) * 2.50).toFixed(2);
+    const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(d.destAddr||d.destName)}&navigate=yes`;
+    return `<div class="trip-row active" style="border-color:${color}44;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:10px;height:10px;border-radius:50%;background:${color}"></div>
+          <span style="font-size:13px;font-weight:700">${d.name}</span>
+        </div>
+        <span class="badge badge-green">IN PROGRESS</span>
+      </div>
+      <div style="font-size:13px;font-weight:600;margin-top:4px">→ ${d.destName}</div>
+      <div style="font-size:11px;color:var(--muted)">${d.destAddr||''}</div>
+      <div style="display:flex;gap:12px;margin-top:6px;font-size:12px">
+        <span style="color:var(--muted)">🕐 Started ${tripTime}</span>
+        <span style="color:var(--muted)">📍 ${d.distanceText||'--'}</span>
+        <span style="color:var(--muted)">⏱ ${d.durationText||'--'}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+        <div>
+          <div style="font-size:11px;color:var(--muted)">Est. fare</div>
+          <div style="font-size:18px;font-weight:800;color:var(--green)">$${estPrice}</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <a href="${wazeUrl}" target="_blank" style="text-decoration:none">
+            <button class="btn btn-outline btn-sm">Waze</button>
+          </a>
+          <button class="btn btn-red btn-sm" onclick="showConfirm('Cancel trip?','Driver ${d.name} will be notified.',()=>{})">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function buildFleetFromFirebase(driverList) {
+  const el = document.getElementById('fleet-list');
+  if (!el) return;
+  const driverColors = { C1:'var(--yellow)', C2:'var(--blue)', C3:'var(--purple)', C4:'var(--green)' };
+  if (driverList.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No drivers yet</div>`;
+    return;
+  }
+  el.innerHTML = driverList.map(d => {
+    const color = driverColors[d.id] || 'var(--muted)';
+    const onDuty = d.status === 'on_duty';
+    const initials = (d.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2);
+    const trips = d.tripsToday || 0;
+    const earn = d.earningsToday ? `$${d.earningsToday.toFixed(2)}` : '$0';
+    const miles = d.milesToday ? d.milesToday.toFixed(1) : '0';
+    const destLine = d.destName && onDuty
+      ? `<div style="font-size:11px;color:var(--blue);margin-top:4px">→ ${d.destName} • ${d.durationText||''} • ${d.distanceText||''}</div>`
+      : '';
+    return `<div class="card" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div class="avatar" style="background:${color}22;color:${color}">${initials}</div>
+        <div style="flex:1">
+          <div style="font-weight:700">${d.name||d.id}</div>
+          <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">ID: ${d.id}</div>
+          ${destLine}
+        </div>
+        <span class="badge ${onDuty?'badge-green':'badge-red'}">${onDuty?'On duty':'Off'}</span>
+      </div>
+      <div class="stats-grid" style="margin-bottom:10px">
+        <div class="stat-box" style="padding:8px"><div style="font-size:16px;font-weight:800;color:var(--yellow);font-family:'DM Mono',monospace">${trips}</div><div class="stat-lbl">Trips</div></div>
+        <div class="stat-box" style="padding:8px"><div style="font-size:16px;font-weight:800;color:var(--yellow);font-family:'DM Mono',monospace">${earn}</div><div class="stat-lbl">Earned</div></div>
+        <div class="stat-box" style="padding:8px"><div style="font-size:16px;font-weight:800;color:var(--yellow);font-family:'DM Mono',monospace">${miles}</div><div class="stat-lbl">Miles</div></div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-outline btn-sm" style="flex:1" onclick="adminMessage('${d.name||d.id}')">Message</button>
+        <button class="btn btn-outline btn-sm" style="flex:1" onclick="adminSkipTurn('${d.id}','${d.name||d.id}')">Skip Turn</button>
+        <button class="btn btn-red btn-sm" style="flex:1" onclick="adminSuspend('${d.id}','${d.name||d.id}')">Suspend</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function buildFleet() {
+  // Now driven by Firebase — just trigger the listener
+  if (!adminFleetListener) startAdminDataListener();
+}
+
+function adminMessage(name) {
+  const msg = prompt(`Send message to ${name}:`);
+  if (!msg) return;
+  const log = document.getElementById('bcast-log');
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  if (log) log.insertAdjacentHTML('afterbegin',
+    `<div class="bcast-msg">
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-size:12px;font-weight:700;color:var(--purple)">Admin → ${name}</span>
+        <span style="font-size:11px;color:var(--muted)">${now}</span>
+      </div>
+      <div style="font-size:13px;margin-top:4px">${msg}</div>
+    </div>`);
+}
+
+function adminSkipTurn(id, name) {
+  showConfirm(`Skip ${name}'s turn?`, 'They will be moved to the end of the round robin queue.', () => {
+    db.collection('drivers').doc(id).update({ skipped: true })
+      .catch(() => console.log('Skip turn saved locally'));
+  });
+}
+
+function adminSuspend(id, name) {
+  showConfirm(`Suspend ${name}?`, 'They will be marked off duty and removed from the queue.', () => {
+    db.collection('drivers').doc(id).update({ status: 'suspended' })
+      .catch(() => console.log('Suspend saved locally'));
+  });
+}
+
+
+function addDriver() {
+  const name = document.getElementById('new-name').value.trim();
+  const id = document.getElementById('new-id').value.trim().toUpperCase();
+  const pass = document.getElementById('new-pass').value.trim();
+  if (!name || !id || !pass) return;
+  drivers[id] = { name, pass };
+  document.getElementById('add-modal').classList.remove('open');
+  ['new-name', 'new-id', 'new-pass'].forEach(x => document.getElementById(x).value = '');
+  buildFleet();
+}
+
+// --- ADMIN AGORA ---
+let adminAgoraClient = null;
+let adminAudioTrack = null;
+let adminTransmitting = false;
+let adminPttStartTime = null;
+let adminAgoraJoined = false;
+
+async function initAdminAgora() {
+  if (!window.AgoraRTC || adminAgoraJoined) return;
+  try {
+    AgoraRTC.setLogLevel(1);
+    adminAgoraClient = AgoraRTC.createClient({ mode: 'rtc', codec: 'h264' });
+    adminAgoraClient.on('user-published', async (user, mediaType) => {
+      await adminAgoraClient.subscribe(user, mediaType);
+      if (mediaType === 'audio') user.audioTrack.play();
+    });
+    adminAgoraClient.on('user-unpublished', async (user, mediaType) => {
+      if (mediaType === 'audio') await adminAgoraClient.unsubscribe(user, mediaType);
+    });
+    setAdminAgoraStatus(false, 'Connecting to Channel 1...');
+    await adminAgoraClient.join(AGORA_APP_ID, AGORA_CHANNEL, AGORA_TOKEN, 0);
+    adminAgoraJoined = true;
+    setAdminAgoraStatus(true, 'Connected · General Dispatch');
+    adminAgoraJoined = true;
+    setAdminAgoraStatus(true, 'Connected · General Dispatch');
+  } catch (e) {
+    setAdminAgoraStatus(false, 'Connection failed — check token');
+    console.error('Admin Agora error:', e);
+  }
+}
+
+function setAdminAgoraStatus(connected, msg) {
+  const dot = document.getElementById('admin-agora-dot');
+  const st = document.getElementById('admin-agora-status');
+  if (dot) dot.className = 'conn-dot' + (connected ? ' connected' : '');
+  if (st) st.textContent = msg;
+}
+
+async function adminStartPTT(e) {
+  if (e) e.preventDefault();
+  if (adminTransmitting) return;
+  if (!adminAgoraJoined) {
+    document.getElementById('admin-ptt-status').textContent = 'Still connecting... try again';
+    return;
+  }
+  adminTransmitting = true;
+  adminPttStartTime = Date.now();
+  const btn = document.getElementById('admin-ptt-btn');
+  btn.classList.add('live');
+  document.getElementById('admin-ptt-status').textContent = 'Transmitting to all drivers...';
+  document.getElementById('admin-ptt-status').style.color = 'var(--green)';
+  try {
+    const rawStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        googEchoCancellation: false,
+        googAutoGainControl: false,
+        googNoiseSuppression: false,
+        googHighpassFilter: false,
+        googTypingNoiseDetection: false,
+        sampleRate: 48000,
+        channelCount: 1,
+      }
+    });
+    adminAudioTrack = await AgoraRTC.createCustomAudioTrack({
+      mediaStreamTrack: rawStream.getAudioTracks()[0],
+      encoderConfig: {
+        sampleRate: 48000,
+        stereo: false,
+        bitrate: 128,
+      }
+    });
+    await adminAgoraClient.publish([adminAudioTrack]);
+  } catch (err) {
+    document.getElementById('admin-ptt-status').textContent = 'Mic access denied — check browser permissions';
+    document.getElementById('admin-ptt-status').style.color = 'var(--red)';
+    btn.classList.remove('live');
+    adminTransmitting = false;
+  }
+}
+
+async function adminStopPTT() {
+  if (!adminTransmitting) return;
+  adminTransmitting = false;
+  const btn = document.getElementById('admin-ptt-btn');
+  btn.classList.remove('live');
+  document.getElementById('admin-ptt-status').textContent = 'Ready to transmit';
+  document.getElementById('admin-ptt-status').style.color = 'var(--muted)';
+  try {
+    if (adminAudioTrack) {
+      await adminAgoraClient.unpublish([adminAudioTrack]);
+      adminAudioTrack.close();
+      adminAudioTrack = null;
+    }
+  } catch (err) { console.error('Admin stop PTT error:', err); }
+  const log = document.getElementById('admin-radio-log');
+  const durSec = adminPttStartTime ? ((Date.now() - adminPttStartTime) / 1000).toFixed(1) : '0.0';
+  const timeStr = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const pct = Math.min(Math.round((parseFloat(durSec) / 30) * 100) + 15, 95);
+  log.insertAdjacentHTML('afterbegin',
+    `<div class="radio-msg" style="border:1px solid rgba(167,139,250,.3)">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:13px;font-weight:700;color:var(--purple)">Dispatch (Admin)</span>
+        <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${timeStr}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:5px">${durSec}s transmission</div>
+      <div class="waveform"><div class="wave-fill" style="width:${pct}%;background:var(--purple)"></div></div>
+    </div>`
+  );
+}
+
+// --- LOGOUT ---
+function doLogout() {
+  if (clockedIn) toggleClock();
+  if (agoraJoined) { try { agoraClient.leave(); } catch(e){} agoraJoined = false; }
+  if (adminAgoraJoined) { try { adminAgoraClient.leave(); } catch(e){} adminAgoraJoined = false; }
+  currentDriver = null; currentRole = 'driver';
+  document.getElementById('login-id').value = '';
+  document.getElementById('login-pass').value = '';
+  show('role');
+}
+
+// --- SETTINGS ---
+let alertsOn = true;
+let lightMode = false;
+
+function saveVehicle() {
+  const make = document.getElementById('veh-make').value.trim();
+  const plate = document.getElementById('veh-plate').value.trim();
+  if (!make || !plate) return;
+  const msg = document.createElement('div');
+  msg.textContent = '✓ Vehicle saved!';
+  msg.style.cssText = 'color:var(--green);font-size:12px;font-weight:600;margin-top:4px';
+  document.getElementById('veh-plate').after(msg);
+  setTimeout(() => msg.remove(), 2000);
+}
+
+function toggleAlerts() {
+  alertsOn = !alertsOn;
+  const knob = document.getElementById('alert-knob');
+  const tog = document.getElementById('alert-toggle');
+  knob.style.left = alertsOn ? '22px' : '2px';
+  knob.style.background = alertsOn ? 'var(--green)' : 'var(--muted)';
+  tog.style.background = alertsOn ? 'rgba(34,211,122,.3)' : 'var(--surface2)';
+}
+
+function toggleTheme() {
+  lightMode = !lightMode;
+  const knob = document.getElementById('theme-knob');
+  const tog = document.getElementById('theme-toggle');
+  knob.style.left = lightMode ? '22px' : '2px';
+  knob.style.background = lightMode ? 'var(--yellow)' : 'var(--muted)';
+  tog.style.background = lightMode ? 'rgba(245,197,24,.2)' : 'var(--surface2)';
+  document.documentElement.style.setProperty('--bg', lightMode ? '#f0f0ea' : '#0f1117');
+  document.documentElement.style.setProperty('--surface', lightMode ? '#ffffff' : '#181c27');
+  document.documentElement.style.setProperty('--surface2', lightMode ? '#e8e8e2' : '#1e2332');
+  document.documentElement.style.setProperty('--text', lightMode ? '#1a1a2e' : '#f0f2f7');
+  document.documentElement.style.setProperty('--muted', lightMode ? '#666677' : '#7a8099');
+  document.documentElement.style.setProperty('--border', lightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)');
+}
+
+function setLang(lang) {
+  const t = { en:{clock:'Clock',map:'Map',radio:'Radio',trips:'Trips',earn:'Earn',ci:'Clock In',co:'Clock Out'},
+               es:{clock:'Reloj',map:'Mapa',radio:'Radio',trips:'Viajes',earn:'Gana',ci:'Iniciar',co:'Finalizar'} }[lang];
+  const tabs = document.querySelectorAll('#screen-driver .tab-btn');
+  const names = ['clock','map','radio','trips','earn'];
+  tabs.forEach((tab,i) => { if(names[i]) tab.lastChild.textContent = t[names[i]]; });
+  const btn = document.getElementById('clock-btn');
+  if (btn) btn.textContent = clockedIn ? t.co : t.ci;
+}
+
+function changePassword() {
+  const cur = document.getElementById('pw-current').value;
+  const nw = document.getElementById('pw-new').value;
+  const conf = document.getElementById('pw-confirm').value;
+  const msg = document.getElementById('pw-msg');
+  if (!cur||!nw||!conf) { msg.textContent='Fill all fields.'; msg.style.color='var(--red)'; msg.style.display='block'; return; }
+  if (nw !== conf) { msg.textContent='Passwords do not match.'; msg.style.color='var(--red)'; msg.style.display='block'; return; }
+  if (currentDriver && drivers[currentDriver].pass !== cur) { msg.textContent='Current password incorrect.'; msg.style.color='var(--red)'; msg.style.display='block'; return; }
+  if (currentDriver) drivers[currentDriver].pass = nw;
+  msg.textContent='✓ Password changed!'; msg.style.color='var(--green)'; msg.style.display='block';
+  ['pw-current','pw-new','pw-confirm'].forEach(id => document.getElementById(id).value='');
+}
+
+// --- TRIP ALERT ---
+let tripAlertCallback = null;
+function showTripAlert(info, onAccept) {
+  document.getElementById('alert-trip-info').innerHTML = info;
+  tripAlertCallback = onAccept;
+  document.getElementById('trip-alert-modal').classList.add('open');
+  if (alertsOn) {
+    try {
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      [0,200,400].forEach(d => setTimeout(() => {
+        const o=ctx.createOscillator(), g=ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value=880; g.gain.value=0.3;
+        o.start(); o.stop(ctx.currentTime+0.15);
+      }, d));
+    } catch(e){}
+  }
+}
+function acceptAlertTrip() { document.getElementById('trip-alert-modal').classList.remove('open'); if(tripAlertCallback) tripAlertCallback(); }
+function declineAlertTrip() { document.getElementById('trip-alert-modal').classList.remove('open'); }
+
+// --- CONFIRM DIALOG ---
+let confirmCallback = null;
+function showConfirm(title, msg, onConfirm) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent = msg;
+  confirmCallback = onConfirm;
+  document.getElementById('confirm-modal').classList.add('open');
+}
+function closeConfirm() { document.getElementById('confirm-modal').classList.remove('open'); }
+document.getElementById('confirm-yes-btn').onclick = function() { closeConfirm(); if(confirmCallback) confirmCallback(); };
+
+// --- TRIP COMPLETE & CANCEL ---
+function completeTrip() { show('receipt'); }
+function cancelTrip() {
+  const t = document.querySelector('#dtab-trips .trip-row.active');
+  if (t) { t.style.opacity='0.4'; t.style.pointerEvents='none'; }
+}
+
+// --- RECEIPT & RATING ---
+function ratePassenger(stars) {
+  document.getElementById('passenger-stars').innerHTML =
+    Array.from({length:5},(_,i)=>`<span style="font-size:32px;cursor:pointer" onclick="ratePassenger(${i+1})">${i<stars?'⭐':'☆'}</span>`).join('');
+  document.getElementById('rating-done').style.display = 'block';
+}
+
+// --- SETTINGS SCREEN POPULATE ---
+function populateSettings() {
+  if (!currentDriver) return;
+  const d = drivers[currentDriver];
+  document.getElementById('settings-name').textContent = d.name;
+  document.getElementById('settings-id').textContent = `Driver ID: ${currentDriver}`;
+  document.getElementById('settings-avatar').textContent = d.name.split(' ').map(w=>w[0]).join('').slice(0,2);
+}
+
+// --- GOOGLE MAPS ---
+let driverMap = null;
+let adminMap = null;
+let driverMarker = null;
+let driverDestMarker = null;
+let driverRouteRenderer = null;
+let adminMarkers = {};
+let adminInfoWindows = {};
+let adminRouteRenderers = {};
+let adminDestMarkers = {};
+let autocompleteService = null;
+let placesService = null;
+let geocoder = null;
+let adminMapListener = null;
+let mapsReady = false;
+
+window.initGoogleMaps = function() {
+  mapsReady = true;
+  autocompleteService = new google.maps.places.AutocompleteService();
+  geocoder = new google.maps.Geocoder();
+};
+
+// Dark map style to match app theme
+function darkMapStyle() {
+  return [
+    {elementType:'geometry',stylers:[{color:'#1a1a2e'}]},
+    {elementType:'labels.text.fill',stylers:[{color:'#7a8099'}]},
+    {elementType:'labels.text.stroke',stylers:[{color:'#0f1117'}]},
+    {featureType:'road',elementType:'geometry',stylers:[{color:'#2a2a4a'}]},
+    {featureType:'road.arterial',elementType:'geometry',stylers:[{color:'#1e2332'}]},
+    {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#2d3154'}]},
+    {featureType:'road.highway',elementType:'labels.text.fill',stylers:[{color:'#f5c518'}]},
+    {featureType:'water',elementType:'geometry',stylers:[{color:'#0d1117'}]},
+    {featureType:'poi',elementType:'geometry',stylers:[{color:'#181c27'}]},
+    {featureType:'poi',elementType:'labels.text.fill',stylers:[{color:'#7a8099'}]},
+    {featureType:'transit',elementType:'geometry',stylers:[{color:'#1e2332'}]},
+  ];
+}
+
+// ─── DRIVER MAP ───────────────────────────────────────────
+function initDriverMap() {
+  if (!mapsReady || driverMap) return;
+  const el = document.getElementById('driver-google-map');
+  if (!el) return;
+
+  driverMap = new google.maps.Map(el, {
+    zoom: 15,
+    center: { lat: 39.2904, lng: -76.6122 },
+    styles: darkMapStyle(),
+    disableDefaultUI: true,
+    zoomControl: true,
+    gestureHandling: 'greedy'
+  });
+
+  // Live traffic
+  new google.maps.TrafficLayer().setMap(driverMap);
+
+  // Driver's own marker (yellow dot)
+  driverMarker = new google.maps.Marker({
+    map: driverMap,
+    title: 'You',
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 10,
+      fillColor: '#f5c518',
+      fillOpacity: 1,
+      strokeColor: '#0f1117',
+      strokeWeight: 2
+    }
+  });
+
+  driverRouteRenderer = new google.maps.DirectionsRenderer({
+    map: driverMap,
+    suppressMarkers: false,
+    polylineOptions: { strokeColor: '#4f9eff', strokeWeight: 5 }
+  });
+
+  // Wire up Places search
+  initDriverSearch();
+
+  // Center on driver's current GPS if available
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      const latlng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      driverMap.setCenter(latlng);
+      driverMarker.setPosition(latlng);
+    });
+  }
+}
+
+// ─── DRIVER PLACES SEARCH ─────────────────────────────────
+function initDriverSearch() {
+  const input = document.getElementById('driver-search-input');
+  if (!input) return;
+  input.addEventListener('input', () => {
+    clearTimeout(window._searchTimeout);
+    const q = input.value.trim();
+    if (q.length < 2) {
+      document.getElementById('driver-autocomplete-list').style.display = 'none';
+      return;
+    }
+    window._searchTimeout = setTimeout(() => {
+      autocompleteService.getPlacePredictions({ input: q }, (predictions, status) => {
+        const list = document.getElementById('driver-autocomplete-list');
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
+          list.style.display = 'none'; return;
+        }
+        list.innerHTML = predictions.slice(0, 5).map((p, i) =>
+          `<div onclick="selectDriverPlace('${p.place_id}','${p.description.replace(/'/g,"\\'")}')"
+            style="padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;display:flex;gap:10px;align-items:center"
+            onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"
+          >
+            <span style="font-size:16px">📍</span>
+            <div>
+              <div style="font-weight:600;color:var(--text)">${p.structured_formatting.main_text}</div>
+              <div style="font-size:11px;color:var(--muted)">${p.structured_formatting.secondary_text||''}</div>
+            </div>
+          </div>`
+        ).join('');
+        list.style.display = 'block';
+      });
+    }, 300);
+  });
+}
+
+function selectDriverPlace(placeId, description) {
+  document.getElementById('driver-autocomplete-list').style.display = 'none';
+  document.getElementById('driver-search-input').value = description;
+
+  geocoder.geocode({ placeId }, (results, status) => {
+    if (status !== 'OK' || !results[0]) return;
+    const destLatLng = results[0].geometry.location;
+    const destAddr = results[0].formatted_address;
+    const destName = results[0].address_components[0]?.long_name || description;
+
+    // Show destination card
+    document.getElementById('driver-dest-card').style.display = 'block';
+    document.getElementById('driver-dest-name').textContent = destName;
+    document.getElementById('driver-dest-addr').textContent = destAddr;
+    document.getElementById('driver-waze-btn').href =
+      `https://waze.com/ul?q=${encodeURIComponent(destAddr)}&navigate=yes`;
+
+    // Draw route on map
+    if (driverMarker && driverMarker.getPosition()) {
+      const svc = new google.maps.DirectionsService();
+      svc.route({
+        origin: driverMarker.getPosition(),
+        destination: destLatLng,
+        travelMode: google.maps.TravelMode.DRIVING
+      }, (result, status) => {
+        if (status === 'OK') {
+          driverRouteRenderer.setDirections(result);
+          const leg = result.routes[0].legs[0];
+          const mins = leg.duration.value / 60;
+          const miles = (leg.distance.value / 1609.34).toFixed(1);
+          const estPrice = (5 + parseFloat(miles) * 2.50).toFixed(2);
+          const hiPrice = (parseFloat(estPrice) + 3).toFixed(2);
+
+          // Update destination card with price + distance
+          document.getElementById('driver-dest-name').textContent = destName;
+          document.getElementById('driver-dest-addr').textContent =
+            `${leg.distance.text} • ${leg.duration.text}`;
+
+          // Show price estimate
+          let priceEl = document.getElementById('driver-price-est');
+          if (!priceEl) {
+            priceEl = document.createElement('div');
+            priceEl.id = 'driver-price-est';
+            priceEl.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center';
+            document.getElementById('driver-dest-card').appendChild(priceEl);
+          }
+          priceEl.innerHTML = `
+            <div>
+              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Est. fare</div>
+              <div style="font-size:20px;font-weight:800;color:var(--green)">$${estPrice} – $${hiPrice}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:10px;color:var(--muted)">${miles} mi</div>
+              <div style="font-size:10px;color:var(--muted)">${leg.duration.text}</div>
+            </div>`;
+
+          // Save to Firebase
+          if (currentDriver) {
+            db.collection('drivers').doc(currentDriver).update({
+              destName, destAddr,
+              destLat: destLatLng.lat(),
+              destLng: destLatLng.lng(),
+              distanceText: leg.distance.text,
+              durationText: leg.duration.text,
+              estFareLow: estPrice,
+              estFareHigh: hiPrice
+            });
+          }
+        }
+      });
+    } else {
+      driverMap.setCenter(destLatLng);
+      driverMap.setZoom(15);
+      if (driverDestMarker) driverDestMarker.setMap(null);
+      driverDestMarker = new google.maps.Marker({ map: driverMap, position: destLatLng });
+    }
+  });
+}
+
+function clearDriverSearch() {
+  document.getElementById('driver-search-input').value = '';
+  document.getElementById('driver-autocomplete-list').style.display = 'none';
+  document.getElementById('driver-dest-card').style.display = 'none';
+  if (driverRouteRenderer) driverRouteRenderer.setDirections({ routes: [] });
+  if (driverDestMarker) { driverDestMarker.setMap(null); driverDestMarker = null; }
+}
+
+// Update driver marker position when GPS updates
+function updateDriverMapPosition(lat, lng) {
+  if (!driverMap || !driverMarker) return;
+  const pos = { lat, lng };
+  driverMarker.setPosition(pos);
+  driverMap.panTo(pos);
+}
+
+// ─── ADMIN FLEET MAP ──────────────────────────────────────
+function initAdminMap() {
+  if (!mapsReady || adminMap) return;
+  const el = document.getElementById('admin-google-map');
+  if (!el) return;
+
+  adminMap = new google.maps.Map(el, {
+    zoom: 12,
+    center: { lat: 39.2904, lng: -76.6122 },
+    styles: darkMapStyle(),
+    disableDefaultUI: true,
+    zoomControl: true,
+    gestureHandling: 'greedy'
+  });
+
+  new google.maps.TrafficLayer().setMap(adminMap);
+  startAdminMapListener();
+}
+
+function startAdminMapListener() {
+  if (adminMapListener) return;
+  const driverColors = { C1:'#f5c518', C2:'#4f9eff', C3:'#a78bfa', C4:'#22d37a' };
+
+  adminMapListener = db.collection('drivers').onSnapshot(snapshot => {
+    const bounds = new google.maps.LatLngBounds();
+    let hasPositions = false;
+
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      if (!d.lat || !d.lng) return;
+      const pos = { lat: d.lat, lng: d.lng };
+      const color = driverColors[doc.id] || '#ffffff';
+      const onDuty = d.status === 'on_duty';
+      bounds.extend(pos);
+      hasPositions = true;
+
+      // Build info window content
+      const destLine = d.destName
+        ? `<div style="margin-top:4px;font-size:12px;color:#22d37a">→ ${d.destName}</div>
+           <div style="font-size:11px;color:#7a8099">${d.distanceText||''} • ${d.durationText||''}</div>`
+        : `<div style="font-size:11px;color:#7a8099;margin-top:4px">No destination set</div>`;
+
+      const infoContent = `
+        <div style="font-family:'Segoe UI',sans-serif;padding:4px;min-width:160px">
+          <div style="font-weight:700;font-size:13px;color:#1a1a2e">${d.name||doc.id}</div>
+          <div style="font-size:11px;color:#7a8099">${onDuty ? '🟢 On Duty' : '🔴 Off Duty'}</div>
+          ${destLine}
+          <div style="font-size:10px;color:#aaa;margin-top:4px">${d.lat?.toFixed(4)}, ${d.lng?.toFixed(4)}</div>
+        </div>`;
+
+      if (adminMarkers[doc.id]) {
+        // Update existing marker
+        adminMarkers[doc.id].setPosition(pos);
+        adminMarkers[doc.id].setIcon({
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: onDuty ? 11 : 7,
+          fillColor: onDuty ? color : '#7a8099',
+          fillOpacity: 1,
+          strokeColor: '#0f1117',
+          strokeWeight: 2
+        });
+        adminInfoWindows[doc.id].setContent(infoContent);
+      } else {
+        // Create new marker
+        const marker = new google.maps.Marker({
+          map: adminMap,
+          position: pos,
+          title: d.name || doc.id,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: onDuty ? 11 : 7,
+            fillColor: onDuty ? color : '#7a8099',
+            fillOpacity: 1,
+            strokeColor: '#0f1117',
+            strokeWeight: 2
+          },
+          label: {
+            text: (d.name||doc.id).split(' ')[0][0],
+            color: '#0f1117',
+            fontWeight: 'bold',
+            fontSize: '11px'
+          }
+        });
+        const infoWindow = new google.maps.InfoWindow({ content: infoContent });
+        marker.addListener('click', () => {
+          Object.values(adminInfoWindows).forEach(iw => iw.close());
+          infoWindow.open(adminMap, marker);
+        });
+        adminMarkers[doc.id] = marker;
+        adminInfoWindows[doc.id] = infoWindow;
+
+        // Draw REAL road route to destination if available
+        if (d.destLat && d.destLng && onDuty) {
+          const destPos = { lat: d.destLat, lng: d.destLng };
+
+          // Remove old route renderer for this driver if exists
+          if (adminRouteRenderers[doc.id]) {
+            adminRouteRenderers[doc.id].setMap(null);
+          }
+
+          const renderer = new google.maps.DirectionsRenderer({
+            map: adminMap,
+            suppressMarkers: true,
+            polylineOptions: {
+              strokeColor: '#4f9eff',
+              strokeWeight: 4,
+              strokeOpacity: 0.8
+            }
+          });
+          adminRouteRenderers[doc.id] = renderer;
+
+          const svc = new google.maps.DirectionsService();
+          svc.route({
+            origin: pos,
+            destination: destPos,
+            travelMode: google.maps.TravelMode.DRIVING
+          }, (result, status) => {
+            if (status === 'OK') renderer.setDirections(result);
+          });
+
+          // Destination pin
+          if (adminDestMarkers[doc.id]) adminDestMarkers[doc.id].setMap(null);
+          adminDestMarkers[doc.id] = new google.maps.Marker({
+            map: adminMap,
+            position: destPos,
+            title: `${d.name} → ${d.destName}`,
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 7,
+              fillColor: '#4f9eff',
+              fillOpacity: 0.9,
+              strokeColor: '#0f1117',
+              strokeWeight: 2
+            }
+          });
+          bounds.extend(destPos);
+        }
+      }
+    });
+
+    if (hasPositions && adminMap) {
+      adminMap.fitBounds(bounds);
+      if (adminMap.getZoom() > 16) adminMap.setZoom(16);
+    }
+  });
+}
+
+
+// --- BROADCAST ---
+function sendBroadcast() {
+  const msg = document.getElementById('bcast-msg').value.trim();
+  if (!msg) return;
+  const target = document.getElementById('bcast-target').value;
+  const now = new Date().toLocaleTimeString();
+  const log = document.getElementById('bcast-log');
+  log.insertAdjacentHTML('afterbegin',
+    `<div class="bcast-msg">
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-size:12px;font-weight:700;color:var(--purple)">Admin → ${target}</span>
+        <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${now}</span>
+      </div>
+      <div style="font-size:13px;margin-top:4px">${msg}</div>
+    </div>`
+  );
+  document.getElementById('bcast-msg').value = '';
+}
+
+// --- SERVICE WORKER REGISTRATION ---
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('CabLink SW registered'))
+      .catch(e => console.log('SW failed:', e));
+  });
+}
+</script>
+</body>
+</html>
